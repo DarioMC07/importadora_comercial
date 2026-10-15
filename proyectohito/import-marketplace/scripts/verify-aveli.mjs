@@ -1,0 +1,50 @@
+import { chromium, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+
+const browser = await chromium.launch({ headless: true, channel: 'msedge' });
+const page = await browser.newPage();
+const errors=[];
+page.on('pageerror', e=>errors.push(e.message));
+try {
+  await page.goto('http://localhost:3000/ingresar');
+  await page.getByLabel('Correo electrónico', {exact:true}).fill('aveli@demo.importhub.test');
+  await page.getByLabel('Contraseña', {exact:true}).fill(process.env.AVELI_TEST_PASSWORD || 'Aveli-2026!');
+  await page.getByRole('button', {name:'Ingresar',exact:true}).click();
+  await page.waitForURL('**/dashboard');
+  await expect(page.getByRole('heading',{name:'Bienvenida a AVÉLI'})).toBeVisible();
+  await page.getByRole('link',{name:'Ver colección'}).click();
+  await expect(page.locator('article img[src^="/aveli/AV-"]')).toHaveCount(20);
+  const baseline=await page.locator('article').count();
+  await expect.poll(()=>page.locator('article img').evaluateAll(imgs=>imgs.filter(i=>!i.complete || i.naturalWidth===0).length)).toBe(0);
+  await page.getByLabel('Filtrar categoría').selectOption('Blusas');
+  await expect(page.locator('article')).toHaveCount(10);
+  await page.getByLabel('Filtrar categoría').selectOption('Poleras');
+  await expect(page.locator('article')).toHaveCount(10);
+  await page.getByRole('button',{name:'+ Agregar producto'}).click();
+  await page.getByLabel('SKU / código *',{exact:true}).fill('TEST-AVELI-E2E');
+  await page.getByLabel('Nombre comercial *',{exact:true}).fill('Prenda de prueba AVÉLI');
+  await page.getByLabel('Categoría *',{exact:true}).fill('Blusas');
+  await page.getByLabel('Precio de venta *',{exact:true}).fill('88');
+  await page.getByLabel('Colores (nombres o códigos HEX, separados por comas)').fill('#541520, blanco');
+  await page.getByLabel('Disponibilidad comercial').selectOption('Disponible');
+  await page.getByRole('button',{name:'Guardar',exact:true}).click();
+  await expect(page.getByRole('form',{name:'Nuevo producto',exact:true})).toHaveCount(0);
+  await page.getByLabel('Filtrar categoría').selectOption('Todos');
+  await page.reload();
+  await expect(page.locator('article')).toHaveCount(baseline+1);
+  const card=page.locator('article').filter({hasText:'TEST-AVELI-E2E'});
+  await card.getByRole('button',{name:'Editar producto'}).click();
+  await expect(page.getByLabel('Precio de venta *',{exact:true})).toHaveValue('88');
+  await expect(page.getByLabel('Tallas (separadas por comas)')).toHaveValue('XS, S, M, L, XL');
+  await page.getByLabel('Precio de venta *',{exact:true}).fill('89');
+  await page.getByRole('button',{name:'Guardar',exact:true}).click();
+  await expect(card).toContainText('89.00');
+  await page.setViewportSize({width:390,height:844});
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
+  if(overflow) throw new Error('Desbordamiento horizontal en móvil');
+  if(errors.length) throw new Error(errors.join('\n'));
+  console.log('OK: acceso AVÉLI, 20 fotos, filtros, alta, persistencia, edición y vista móvil.');
+} finally {
+  execFileSync('docker',['exec','supabase_db_import-marketplace','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',"delete from public.products where sku='TEST-AVELI-E2E' and workspace_id in (select id from public.seller_workspaces where slug='aveli');"]);
+  await browser.close();
+}

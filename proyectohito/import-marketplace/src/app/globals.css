@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.aveli-panel { background: #f3ebde; color: #3e231a; }
+.aveli-panel aside { background: #541520; }
+.aveli-panel aside .bg-brand-600 { background: #c59595; color: #3e231a; }
+.aveli-panel aside a:hover { background-color: #71323e; }
+.aveli-panel aside p, .aveli-panel aside a { color: #f3ebde; }
+.aveli-panel header { background: #fffaf3; border-color: #dfc8c0; }
+.aveli-panel .btn-primario { background: #541520; color: #fffaf3; }
+.aveli-panel .btn-primario:hover { background: #71323e; }
+.aveli-panel .btn-secundario { border-color: #c59595; color: #541520; }
+.aveli-panel .tarjeta { border-color: #e1ccc2; background: #fffaf5; }
+.aveli-panel h1, .aveli-panel h2 { color: #541520; }
+.aveli-portada { display: flex; align-items: center; gap: 2rem; padding: 2rem; border: 1px solid #c59595; border-radius: 1rem; background: #fffaf3; }
+.aveli-portada img { border-radius: 50%; object-fit: contain; }
+.aveli-pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2rem; background: #541520; color: #f3ebde; padding: 2rem; }
+.aveli-pie a:hover { text-decoration: underline; }
+@media (max-width: 640px) { .aveli-portada { flex-direction: column; text-align: center; padding: 1.5rem; } }
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+  /* Foco visible y consistente (accesibilidad) */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white;
+  }
+}
+
+@layer components {
+  .contenedor {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .campo {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 disabled:cursor-not-allowed disabled:bg-slate-100 min-h-[44px];
+  }
+  .campo-error {
+    @apply border-red-500 focus:border-red-500;
+  }
+  .etiqueta {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .mensaje-error {
+    @apply mt-1 text-sm text-red-600;
+  }
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primario {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-secundario {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-peligro {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-fantasma {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+  .tarjeta {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+}
