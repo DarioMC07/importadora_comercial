@@ -36,7 +36,7 @@ async function main() {
     const { error } = await admin.auth.admin.createUser({
       id: u.id,
       email: u.email,
-      password: PASSWORD_DEMO,
+      password: u.password || PASSWORD_DEMO,
       email_confirm: true,
       user_metadata: { full_name: u.nombre },
     });

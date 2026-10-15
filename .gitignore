@@ -40,3 +40,6 @@ yarn-debug.log*
 pnpm-debug.log*
 .vscode/
 .idea/
+
+.vercel
+.env*
