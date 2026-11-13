@@ -74,13 +74,13 @@ psql "$DATABASE_URL" -f supabase/seed.sql
 
 ## Credenciales demo (cámbialas fuera de demo)
 
-| Espacio | Correo | Contraseña |
-|---|---|---|
-| Andes Import (tecnología) | `vendedor1@demo.importhub.test` | `Demo-2026!` |
-| Paceña Home (hogar) | `vendedor2@demo.importhub.test` | `Demo-2026!` |
-| Altiplano Kids (juguetes) | `vendedor3@demo.importhub.test` | `Demo-2026!` |
-| Chaco Tools (herramientas) | `vendedor4@demo.importhub.test` | `Demo-2026!` |
-| AVÉLI (varios) | `aveli@demo.importhub.test` | `Aveli-2026!` |
+| Espacio | Correo | Contraseña | Catálogo |
+|---|---|---|---|
+| **Smaylan** (cosmética y cuidado facial) | `smaylan@demo.importhub.test` | `Smaylan-2026!` | 10 productos |
+| **Chocolates Capri** (chocolatería) | `capri@demo.importhub.test` | `Capri-2026!` | 10 productos |
+| **Trencito Express** (heladería) | `trencito@demo.importhub.test` | `Trencito-2026!` | 1 producto |
+| **Chaco Tools** (herramientas) | `vendedor4@demo.importhub.test` | `Demo-2026!` | 5 productos |
+| **AVÉLI** (moda y prendas) | `aveli@demo.importhub.test` | `Aveli-2026!` | 20 productos |
 
 ## Scripts
 
