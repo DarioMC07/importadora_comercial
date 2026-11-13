@@ -20,12 +20,12 @@ export default async function PaginaConfirmacion({
     <div className="contenedor py-16">
       <div className="tarjeta mx-auto max-w-lg p-8 text-center">
         <div
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700"
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-lima text-3xl text-slate-900"
           aria-hidden="true"
         >
           ✓
         </div>
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">¡Solicitud enviada!</h1>
+        <h1 className="titulo-seccion mt-5">¡Solicitud enviada!</h1>
         <p className="mt-2 text-slate-600">
           {codigos.length > 1
             ? "Tu carrito incluía productos de varios vendedores, así que generamos una solicitud para cada uno:"
