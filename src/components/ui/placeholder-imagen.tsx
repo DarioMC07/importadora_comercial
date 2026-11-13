@@ -5,7 +5,7 @@
 export function PlaceholderImagen({ className }: { className?: string }) {
   return (
     <div
-      className={`flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 ${className ?? ""}`}
+      className={`flex items-center justify-center bg-slate-100 ${className ?? ""}`}
       role="img"
       aria-label="Producto sin imagen"
     >
@@ -14,12 +14,10 @@ export function PlaceholderImagen({ className }: { className?: string }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.5"
-        className="h-12 w-12 text-slate-400"
+        className="h-10 w-10 text-slate-300"
         aria-hidden="true"
       >
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="9" cy="9" r="2" />
-        <path d="m21 15-3.5-3.5a1.5 1.5 0 0 0-2 0L6 21" />
+        <path d="M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10 M7.5 5l9 4" strokeLinejoin="round" />
       </svg>
     </div>
   );
