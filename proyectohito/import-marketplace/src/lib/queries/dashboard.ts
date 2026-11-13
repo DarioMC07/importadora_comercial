@@ -96,3 +96,13 @@ export async function obtenerResumen(): Promise<ResumenDashboard> {
     porFormaPago: [...porPago.entries()].map(([metodo, total]) => ({ metodo, total })),
   };
 }
+
+/** Solicitudes sin resolver, para el aviso de la barra lateral. */
+export async function contarSolicitudesPendientes(): Promise<number> {
+  const supabase = await crearClienteServidor();
+  const { count } = await supabase
+    .from("purchase_requests")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["NUEVA", "CONTACTADA"]);
+  return count ?? 0;
+}

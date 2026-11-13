@@ -44,7 +44,7 @@ export default async function PaginaProductos() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 font-serif">
+        <h1 className="titulo-pagina">
           Catálogo {sesion.workspaceNombre}
         </h1>
         <p className="mt-1 text-sm text-slate-600">{subtitulo}</p>

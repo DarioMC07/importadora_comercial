@@ -1,22 +1,14 @@
 import { requerirVendedor } from "@/lib/auth";
 import { BarraLateral } from "@/components/dashboard/barra-lateral";
 import { cerrarSesion } from "@/server/actions/auth";
+import { contarSolicitudesPendientes } from "@/lib/queries/dashboard";
 import { TiendaPie } from "@/components/dashboard/tienda";
+import { obtenerMarca } from "@/components/dashboard/marcas";
 
 export default async function LayoutDashboard({ children }: { children: React.ReactNode }) {
   const sesion = await requerirVendedor();
-  const slug = sesion.workspaceSlug;
-
-  const panelClass =
-    slug === "aveli"
-      ? "aveli-panel"
-      : slug === "smaylan"
-        ? "smaylan-panel"
-        : slug === "chocolates-capri"
-          ? "capri-panel"
-          : slug === "trencito"
-            ? "trencito-panel"
-            : "";
+  const solicitudesPendientes = await contarSolicitudesPendientes();
+  const panelClass = obtenerMarca(sesion.workspaceSlug)?.clasePanel ?? "";
 
   return (
     <div className={`flex min-h-screen flex-1 bg-slate-50 ${panelClass}`}>
@@ -24,18 +16,15 @@ export default async function LayoutDashboard({ children }: { children: React.Re
         nombreEspacio={sesion.workspaceNombre}
         nombreUsuario={sesion.nombreCompleto}
         workspaceSlug={sesion.workspaceSlug}
-        esAveli={slug === "aveli"}
+        solicitudesPendientes={solicitudesPendientes}
       />
       <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Espacio de trabajo
-            </p>
-            <p className="truncate font-serif text-lg font-bold text-slate-900">{sesion.workspaceNombre}</p>
-          </div>
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 pl-16 pr-4 backdrop-blur sm:pr-6 lg:pl-8">
+          <p className="min-w-0 truncate font-display text-lg font-semibold tracking-tight text-slate-900">
+            {sesion.workspaceNombre}
+          </p>
           <form action={cerrarSesion}>
-            <button type="submit" className="btn-secundario text-xs">
+            <button type="submit" className="btn-secundario">
               Cerrar sesión
             </button>
           </form>
