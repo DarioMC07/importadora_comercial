@@ -7,6 +7,7 @@ import { Badge, badgeDisponibilidad } from "@/components/ui/badge";
 import { PlaceholderImagen } from "@/components/ui/placeholder-imagen";
 import { TarjetaProducto } from "@/components/marketplace/tarjeta-producto";
 import { BotonAgregar } from "@/components/marketplace/boton-agregar";
+import { atributosPublicos } from "@/lib/rubros";
 
 export const revalidate = 60;
 
@@ -37,6 +38,7 @@ export default async function PaginaProducto({ params }: Props) {
   const disp = badgeDisponibilidad(listing.availability);
   const relacionados = await obtenerRelacionados(listing.category, listing.slug);
   const dims = listing.dims_public as Record<string, string | number> | null;
+  const atributos = atributosPublicos(listing.rubro, listing.attributes);
 
   return (
     <div className="contenedor py-8">
@@ -124,6 +126,12 @@ export default async function PaginaProducto({ params }: Props) {
                 <dd className="mt-0.5 font-semibold text-slate-900">{String(dims.peso_kg)} kg</dd>
               </div>
             )}
+            {atributos.map((a) => (
+              <div key={a.clave} className={a.largo ? "tarjeta col-span-2 p-3" : "tarjeta p-3"}>
+                <dt className="text-slate-500">{a.etiqueta}</dt>
+                <dd className="mt-0.5 whitespace-pre-line font-semibold text-slate-900">{a.valor}</dd>
+              </div>
+            ))}
           </dl>
         </div>
       </div>

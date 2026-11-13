@@ -4,8 +4,11 @@ import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { obtenerSesionVendedor } from "@/lib/auth";
 import { productoSchema } from "@/lib/validators";
+import { limpiarAtributos } from "@/lib/rubros";
 import { mensajeError } from "./errores";
 import type { ResultadoAccion } from "./proveedores";
+
+export type ResultadoProducto = ResultadoAccion & { errores?: Record<string, string> };
 
 export async function subirImagenProducto(form: FormData): Promise<{ ok: boolean; url?: string; error?: string }> {
   const sesion = await obtenerSesionVendedor();
@@ -23,12 +26,19 @@ export async function subirImagenProducto(form: FormData): Promise<{ ok: boolean
   return { ok: true, url };
 }
 
-export async function guardarProducto(input: unknown, id?: string): Promise<ResultadoAccion> {
+export async function guardarProducto(input: unknown, id?: string): Promise<ResultadoProducto> {
   const sesion = await obtenerSesionVendedor();
   if (!sesion) return { ok: false, error: "Sesión expirada. Ingresa nuevamente." };
 
   const parsed = productoSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+  if (!parsed.success) {
+    const errores: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const ruta = issue.path.join(".");
+      if (ruta && !errores[ruta]) errores[ruta] = issue.message;
+    }
+    return { ok: false, error: parsed.error.issues[0]?.message, errores };
+  }
 
   const numOrNull = (s: string | undefined) =>
     s && /^\d+(\.\d+)?$/.test(s) ? Number(s) : null;
@@ -56,6 +66,8 @@ export async function guardarProducto(input: unknown, id?: string): Promise<Resu
     origin_public: parsed.data.origin_public,
     notes: parsed.data.notes || null,
     active: parsed.data.active,
+    rubro: parsed.data.rubro,
+    attributes: limpiarAtributos(parsed.data.rubro, parsed.data.attributes),
     ...(parsed.data.image_url !== undefined && { image_url: parsed.data.image_url || null }),
     ...(parsed.data.sizes !== undefined && { sizes: parsed.data.sizes }),
     ...(parsed.data.colors !== undefined && { colors: parsed.data.colors }),

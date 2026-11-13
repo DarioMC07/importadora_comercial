@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { productoSchema, type ProductoInput } from "@/lib/validators";
 import type { z } from "zod";
 import { guardarProducto, publicarProducto, despublicarProducto, subirImagenProducto } from "@/server/actions/productos";
 import { Badge } from "@/components/ui/badge";
 import { formatoDineroDecimal } from "@/lib/format";
+import { ETIQUETA_RUBRO, RUBROS, esRubro, normalizarAtributos, rubroMasUsado } from "@/lib/rubros";
+import { CamposRubro } from "@/components/dashboard/productos/campos-rubro";
 
 type ProductoForm = z.input<typeof productoSchema>;
 
@@ -40,6 +42,8 @@ export interface Producto {
   sizes?: string;
   colors?: string;
   catalog_availability?: "Disponible" | "Agotado" | "Consultar disponibilidad";
+  rubro?: string;
+  attributes?: unknown;
 }
 
 const vacio: ProductoForm = {
@@ -47,6 +51,8 @@ const vacio: ProductoForm = {
   name: "",
   description: "",
   category: "",
+  rubro: "GENERAL",
+  attributes: {},
   image_url: "",
   sizes: "",
   colors: "",
@@ -92,9 +98,11 @@ export function GestionProductos({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
 
+  const rubroInicial = rubroMasUsado(productos.map((p) => p.rubro));
+
   const form = useForm<ProductoForm, unknown, ProductoInput>({
     resolver: zodResolver(productoSchema),
-    defaultValues: esAveli ? { ...vacio, sizes: "XS, S, M, L, XL" } : vacio,
+    defaultValues: esAveli ? { ...vacio, rubro: rubroInicial, sizes: "XS, S, M, L, XL" } : { ...vacio, rubro: rubroInicial },
   });
 
   useEffect(() => {
@@ -118,7 +126,7 @@ export function GestionProductos({
 
   function abrirNuevo() {
     setEditando(null);
-    form.reset(esAveli ? { ...vacio, sizes: "XS, S, M, L, XL" } : vacio);
+    form.reset(esAveli ? { ...vacio, rubro: rubroInicial, sizes: "XS, S, M, L, XL" } : { ...vacio, rubro: rubroInicial });
     setMostrarForm(true);
     setMensaje(null);
   }
@@ -150,6 +158,8 @@ export function GestionProductos({
       sizes: p.sizes ?? "",
       colors: p.colors ?? "",
       catalog_availability: p.catalog_availability ?? "Disponible",
+      rubro: esRubro(p.rubro) ? p.rubro : "GENERAL",
+      attributes: normalizarAtributos(p.attributes),
     });
     setMostrarForm(true);
     setMensaje(null);
@@ -159,6 +169,9 @@ export function GestionProductos({
     startTransition(async () => {
       const r = await guardarProducto(datos, editando?.id);
       if (!r.ok) {
+        for (const [ruta, texto] of Object.entries(r.errores ?? {})) {
+          form.setError(ruta as FieldPath<ProductoForm>, { message: texto });
+        }
         setMensaje(r.error ?? "Error al guardar el producto.");
         return;
       }
@@ -283,6 +296,21 @@ export function GestionProductos({
           </div>
 
           <div>
+            <label htmlFor="pr-rubro" className="etiqueta">
+              Rubro *
+            </label>
+            <select id="pr-rubro" className="campo" {...form.register("rubro")}>
+              {RUBROS.map((r) => (
+                <option key={r} value={r}>
+                  {ETIQUETA_RUBRO[r]}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">El rubro define los datos propios del producto.</p>
+            {form.formState.errors.rubro && <p className="mensaje-error">{form.formState.errors.rubro.message}</p>}
+          </div>
+
+          <div>
             <label htmlFor="pr-precio" className="etiqueta">
               Precio de venta al público (BOB) *
             </label>
@@ -299,6 +327,7 @@ export function GestionProductos({
               <option value="Consultar disponibilidad">Consultar disponibilidad</option>
               <option value="Agotado">Agotado</option>
             </select>
+            {form.formState.errors.catalog_availability && <p className="mensaje-error">{form.formState.errors.catalog_availability.message}</p>}
           </div>
 
           <div className="sm:col-span-2 lg:col-span-3">
@@ -313,7 +342,10 @@ export function GestionProductos({
               placeholder="Presentación, características, fórmula o ingredientes..."
               {...form.register("description")}
             />
+            {form.formState.errors.description && <p className="mensaje-error">{form.formState.errors.description.message}</p>}
           </div>
+
+          <CamposRubro form={form} rubro={esRubro(watch.rubro) ? watch.rubro : "GENERAL"} />
 
           {/* Fotografía del producto */}
           <div className="sm:col-span-2 lg:col-span-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -382,6 +414,7 @@ export function GestionProductos({
               País de origen
             </label>
             <input id="pr-origen" className="campo" maxLength={80} {...form.register("origin_country")} />
+            {form.formState.errors.origin_country && <p className="mensaje-error">{form.formState.errors.origin_country.message}</p>}
           </div>
 
           <div>
@@ -389,6 +422,7 @@ export function GestionProductos({
               Unidad de medida
             </label>
             <input id="pr-unit" className="campo" maxLength={20} {...form.register("unit")} />
+            {form.formState.errors.unit && <p className="mensaje-error">{form.formState.errors.unit.message}</p>}
           </div>
 
           <div>
@@ -402,6 +436,7 @@ export function GestionProductos({
               className="campo"
               {...form.register("min_stock", { valueAsNumber: true })}
             />
+            {form.formState.errors.min_stock && <p className="mensaje-error">{form.formState.errors.min_stock.message}</p>}
           </div>
 
           <div className="flex gap-2 sm:col-span-2 lg:col-span-3 border-t border-slate-200 pt-4">

@@ -18,6 +18,8 @@ export interface Listing {
   availability: "DISPONIBLE" | "POCAS_UNIDADES" | "AGOTADO";
   origin_country: string | null;
   dims_public: Record<string, unknown> | null;
+  rubro: string;
+  attributes: Record<string, unknown> | null;
   seller_public_name: string;
   seller_slug: string;
   images: ImagenListing[];
