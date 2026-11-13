@@ -1,7 +1,7 @@
 services:
   web:
     build:
-      context: ./proyectohito/import-marketplace
+      context: ./import-marketplace
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://127.0.0.1:54321}
@@ -18,9 +18,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
-      - path: ./proyectohito/import-marketplace/.env.local
+      - path: ./import-marketplace/.env.local
         required: false
-      - path: ./proyectohito/import-marketplace/.env
+      - path: ./import-marketplace/.env
         required: false
       - path: .env.local
         required: false
