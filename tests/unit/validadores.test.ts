@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filtroCatalogoSchema,
+  imagenesProductoSchema,
   loginSchema,
   montoSchema,
   productoSchema,
@@ -145,5 +146,31 @@ describe("productoSchema", () => {
       const issue = resUnidad.error.issues.find((i) => i.path.includes("unit"));
       expect(issue?.message).toBe("Unidad requerida");
     }
+  });
+
+  it("imagenesProductoSchema valida cantidad máxima, campos obligatorios y rechaza campos extras", () => {
+    expect(imagenesProductoSchema.safeParse([]).success).toBe(true);
+
+    const ocho = Array.from({ length: 8 }, (_, i) => ({
+      storage_path: `ws/img-${i}.png`,
+      public_url: `https://example.com/ws/img-${i}.png`,
+    }));
+    expect(imagenesProductoSchema.safeParse(ocho).success).toBe(true);
+
+    const nueve = Array.from({ length: 9 }, (_, i) => ({
+      storage_path: `ws/img-${i}.png`,
+      public_url: `https://example.com/ws/img-${i}.png`,
+    }));
+    const resNueve = imagenesProductoSchema.safeParse(nueve);
+    expect(resNueve.success).toBe(false);
+    if (!resNueve.success) {
+      expect(resNueve.error.issues[0]?.message).toBe("Máximo 8 imágenes por producto");
+    }
+
+    const conExtra = [{ storage_path: "ws/a.png", public_url: "https://example.com/a.png", extra: 123 }];
+    expect(imagenesProductoSchema.safeParse(conExtra).success).toBe(false);
+
+    const pathVacio = [{ storage_path: "", public_url: "https://example.com/a.png" }];
+    expect(imagenesProductoSchema.safeParse(pathVacio).success).toBe(false);
   });
 });

@@ -44,6 +44,8 @@ const VENTA_V2 = "88888888-0000-4000-8000-000000000011";
 const IMPORT_V2 = "55555555-0000-4000-8000-000000000003";
 const WS_V2 = "11111111-0000-4000-8000-000000000002";
 const PRODUCTO_V1 = "33333333-0000-4000-8000-000000000001"; // Auriculares (vendedor 1)
+const WS_V1 = "11111111-0000-4000-8000-000000000001";
+const PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
 async function main() {
   console.log("\nPruebas RLS — rol anónimo (visitante)");
@@ -169,6 +171,99 @@ async function main() {
   prueba(
     "nadie escribe atributos directo en catalog_listings (solo por funciones)",
     fichaFinal?.attributes?.marca === "AirBeat",
+  );
+
+  console.log("\nPruebas RLS — galería de imágenes de producto");
+  const IMG_A = { storage_path: "/demo/rls-a.png", public_url: "/demo/rls-a.png" };
+  const IMG_B = { storage_path: "/demo/rls-b.png", public_url: "/demo/rls-b.png" };
+
+  const { error: imgCruzada } = await v1.from("product_images").insert({
+    workspace_id: WS_V1, product_id: PRODUCTO_V2, storage_path: "/demo/x.png", public_url: "/demo/x.png", position: 0,
+  });
+  prueba("vendedor 1 NO puede colgar una imagen propia en un producto ajeno", !!imgCruzada);
+
+  const { error: imgAjena } = await v1.from("product_images").insert({
+    workspace_id: WS_V2, product_id: PRODUCTO_V2, storage_path: "/demo/y.png", public_url: "/demo/y.png", position: 1,
+  });
+  prueba("vendedor 1 NO puede insertar imágenes en el espacio ajeno", !!imgAjena);
+
+  const { error: setAjeno } = await v1.rpc("set_product_images", { p_product_id: PRODUCTO_V2, p_images: [IMG_A] });
+  prueba("vendedor 1 NO puede cambiar la galería de un producto ajeno", !!setAjeno);
+
+  const { error: setAnon } = await anon.rpc("set_product_images", { p_product_id: PRODUCTO_V1, p_images: [IMG_A] });
+  prueba("anónimo NO puede cambiar una galería", !!setAnon);
+
+  const { error: setPropio } = await v1.rpc("set_product_images", { p_product_id: PRODUCTO_V1, p_images: [IMG_A, IMG_B] });
+  prueba("vendedor 1 PUEDE guardar la galería de su producto", !setPropio, setPropio?.message ?? "");
+
+  const { data: fichaImg } = await anon.from("catalog_listings").select("images").eq("product_id", PRODUCTO_V1).single();
+  prueba(
+    "el catálogo muestra las imágenes en orden, portada primero",
+    fichaImg?.images?.length === 2 && fichaImg.images[0].url === IMG_A.public_url && fichaImg.images[1].url === IMG_B.public_url,
+  );
+
+  await v1.rpc("set_product_images", { p_product_id: PRODUCTO_V1, p_images: [IMG_B, IMG_A] });
+  const { data: fichaOrden } = await anon.from("catalog_listings").select("images").eq("product_id", PRODUCTO_V1).single();
+  prueba("al reordenar cambia la portada del catálogo", fichaOrden?.images?.[0]?.url === IMG_B.public_url);
+
+  const { data: prodPortada } = await v1.from("products").select("image_url").eq("id", PRODUCTO_V1).single();
+  prueba("la portada queda como foto principal del producto", prodPortada?.image_url === IMG_B.public_url);
+
+  const v2d = await login("vendedor2@demo.importhub.test");
+  const { data: imgsV1 } = await v2d.from("product_images").select("id").eq("product_id", PRODUCTO_V1);
+  prueba("vendedor 2 NO lee las imágenes del vendedor 1", (imgsV1 ?? []).length === 0);
+
+  const nueve = Array.from({ length: 9 }, (_, i) => ({ storage_path: `/demo/n${i}.png`, public_url: `/demo/n${i}.png` }));
+  const { error: setNueve } = await v1.rpc("set_product_images", { p_product_id: PRODUCTO_V1, p_images: nueve });
+  prueba("la base rechaza más de 8 imágenes", !!setNueve);
+
+  const { error: setFalsa } = await v1.rpc("set_product_images", {
+    p_product_id: PRODUCTO_V1,
+    p_images: [{ storage_path: `${WS_V1}/falsa.png`, public_url: "https://example.com/otra.png" }],
+  });
+  prueba("la base rechaza una URL que no corresponde a su ruta", !!setFalsa);
+
+  await v1.rpc("unpublish_product", { p_product_id: PRODUCTO_V1 });
+  await v1.rpc("publish_product", { p_product_id: PRODUCTO_V1 });
+  const { data: fichaRepub } = await anon.from("catalog_listings").select("images").eq("product_id", PRODUCTO_V1).single();
+  prueba(
+    "despublicar y publicar conserva las imágenes",
+    fichaRepub?.images?.length === 2 && fichaRepub.images[0].url === IMG_B.public_url,
+  );
+
+  const pixel = new Blob([Buffer.from(PIXEL_PNG, "base64")], { type: "image/png" });
+  const { error: subeAjeno } = await v1.storage
+    .from("product-images")
+    .upload(`${WS_V2}/${PRODUCTO_V2}/rls-${Date.now()}.png`, pixel, { contentType: "image/png" });
+  prueba("vendedor 1 NO puede subir archivos a la carpeta de otro espacio", !!subeAjeno);
+
+  const rutaPropia = `${WS_V1}/${PRODUCTO_V1}/rls-${Date.now()}.png`;
+  const { error: subePropio } = await v1.storage.from("product-images").upload(rutaPropia, pixel, { contentType: "image/png" });
+  prueba("vendedor 1 PUEDE subir archivos a la carpeta de su producto", !subePropio, subePropio?.message ?? "");
+
+  const urlPropia = `${url}/storage/v1/object/public/product-images/${rutaPropia}`;
+  const { error: setBucket } = await v1.rpc("set_product_images", {
+    p_product_id: PRODUCTO_V1,
+    p_images: [{ storage_path: rutaPropia, public_url: urlPropia }],
+  });
+  prueba("vendedor 1 PUEDE guardar en la galería una imagen subida al bucket", !setBucket, setBucket?.message ?? "");
+
+  const { data: sobrantes, error: setVacia } = await v1.rpc("set_product_images", { p_product_id: PRODUCTO_V1, p_images: [] });
+  prueba(
+    "la función devuelve la ruta de bucket que salió de la galería",
+    !setVacia && Array.isArray(sobrantes) && sobrantes.length === 1 && sobrantes[0] === rutaPropia,
+  );
+  await v1.storage.from("product-images").remove([rutaPropia]);
+
+  const { data: prodSinFoto } = await v1.from("products").select("image_url").eq("id", PRODUCTO_V1).single();
+  prueba("al vaciar la galería el producto queda sin foto principal", prodSinFoto?.image_url === null);
+
+  await v1.from("products").update({ image_url: "/demo/unica.png" }).eq("id", PRODUCTO_V1);
+  await v1.rpc("publish_product", { p_product_id: PRODUCTO_V1 });
+  const { data: fichaUnica } = await anon.from("catalog_listings").select("images").eq("product_id", PRODUCTO_V1).single();
+  prueba(
+    "un producto con solo la foto anterior la muestra al publicar",
+    fichaUnica?.images?.length === 1 && fichaUnica.images[0].url === "/demo/unica.png",
   );
 
   console.log(`\nResultado: ${pasadas} pasadas, ${falladas} falladas.`);
