@@ -11,6 +11,7 @@ import { dividirPorVendedor, itemsParaSolicitud, totalCarrito } from "@/lib/cart
 import { formatoDineroDecimal } from "@/lib/format";
 import { crearSolicitudCompra } from "@/server/actions/solicitudes-publicas";
 import { PlaceholderImagen } from "@/components/ui/placeholder-imagen";
+import { SelectorCantidad } from "@/components/ui/selector-cantidad";
 
 const formularioSchema = z.object({
   name: z.string().trim().min(2, "Ingresa tu nombre completo").max(160),
@@ -65,7 +66,7 @@ export default function PaginaCarrito() {
     return (
       <div className="contenedor py-16">
         <div className="tarjeta mx-auto flex max-w-md flex-col items-center gap-4 p-10 text-center">
-          <p className="text-xl font-semibold text-slate-800">Tu carrito está vacío</p>
+          <p className="font-display text-2xl font-medium text-slate-900">Tu carrito está vacío</p>
           <p className="text-slate-500">Explora el catálogo y agrega productos de varios vendedores.</p>
           <Link href="/catalogo" className="btn-primario">
             Ir al catálogo
@@ -77,7 +78,7 @@ export default function PaginaCarrito() {
 
   return (
     <div className="contenedor py-8">
-      <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Tu carrito</h1>
+      <h1 className="titulo-pagina">Tu carrito</h1>
       <p className="mt-1 text-slate-600">
         Al enviar la solicitud se generará <strong>una solicitud independiente por vendedor</strong>.
       </p>
@@ -92,7 +93,7 @@ export default function PaginaCarrito() {
               <ul className="divide-y divide-slate-100">
                 {grupo.items.map((item) => (
                   <li key={item.productId} className="flex flex-wrap items-center gap-4 p-4">
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                       {item.imagen ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={item.imagen} alt="" className="h-full w-full object-cover" />
@@ -104,21 +105,18 @@ export default function PaginaCarrito() {
                       <Link href={`/catalogo/${item.slug}`} className="font-medium text-slate-900 hover:underline">
                         {item.nombre}
                       </Link>
-                      <p className="text-sm text-slate-500">{formatoDineroDecimal(item.precio)}</p>
+                      <p className="text-sm text-slate-500">{formatoDineroDecimal(item.precio)} c/u</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <label htmlFor={`cant-${item.productId}`} className="sr-only">
-                        Cantidad de {item.nombre}
-                      </label>
-                      <input
+                      <SelectorCantidad
                         id={`cant-${item.productId}`}
-                        type="number"
-                        min={1}
-                        max={999}
-                        value={item.cantidad}
-                        onChange={(e) => cambiarCantidad(item.productId, Number(e.target.value))}
-                        className="campo w-20"
+                        etiqueta={`Cantidad de ${item.nombre}`}
+                        valor={item.cantidad}
+                        onCambio={(n) => cambiarCantidad(item.productId, n)}
                       />
+                      <p className="w-24 text-right font-semibold tabular-nums text-slate-900">
+                        {formatoDineroDecimal(Math.round(item.precio * 100) * item.cantidad / 100)}
+                      </p>
                       <button
                         type="button"
                         className="btn-fantasma text-red-600"
@@ -138,8 +136,8 @@ export default function PaginaCarrito() {
           ))}
         </div>
 
-        <div className="tarjeta h-fit p-6">
-          <h2 className="text-lg font-semibold text-slate-900">Datos de contacto</h2>
+        <div className="tarjeta h-fit p-6 lg:sticky lg:top-20">
+          <h2 className="text-xl font-semibold text-slate-900">Datos de contacto</h2>
           <p className="mt-1 text-sm text-slate-500">
             El vendedor te contactará para coordinar pago y entrega. No hay cobro en línea.
           </p>
@@ -186,7 +184,7 @@ export default function PaginaCarrito() {
               </p>
             )}
 
-            <button type="submit" disabled={isSubmitting} className="btn-primario w-full">
+            <button type="submit" disabled={isSubmitting} className="btn-lima w-full text-base">
               {isSubmitting ? "Enviando…" : "Enviar solicitud de compra"}
             </button>
           </form>

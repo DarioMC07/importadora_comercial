@@ -34,7 +34,8 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
       const crudo = localStorage.getItem(CLAVE_STORAGE);
       if (crudo) {
         const parsed = JSON.parse(crudo) as ItemCarrito[];
-        if (Array.isArray(parsed)) setItems(parsed.filter((i) => i.cantidad > 0));
+        if (Array.isArray(parsed))
+          setItems(parsed.filter((i) => i.cantidad > 0));
       }
     } catch {
       // Storage corrupto o no disponible: carrito vacío.
@@ -52,19 +53,22 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items, cargado]);
 
-  const agregar = useCallback((item: Omit<ItemCarrito, "cantidad">, cantidad = 1) => {
-    setItems((prev) => {
-      const existente = prev.find((i) => i.productId === item.productId);
-      if (existente) {
-        return prev.map((i) =>
-          i.productId === item.productId
-            ? { ...i, cantidad: Math.min(999, i.cantidad + cantidad) }
-            : i,
-        );
-      }
-      return [...prev, { ...item, cantidad }];
-    });
-  }, []);
+  const agregar = useCallback(
+    (item: Omit<ItemCarrito, "cantidad">, cantidad = 1) => {
+      setItems((prev) => {
+        const existente = prev.find((i) => i.productId === item.productId);
+        if (existente) {
+          return prev.map((i) =>
+            i.productId === item.productId
+              ? { ...i, cantidad: Math.min(999, i.cantidad + cantidad) }
+              : i,
+          );
+        }
+        return [...prev, { ...item, cantidad }];
+      });
+    },
+    [],
+  );
 
   const quitar = useCallback((productId: string) => {
     setItems((prev) => prev.filter((i) => i.productId !== productId));
@@ -75,7 +79,9 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
       cantidad <= 0
         ? prev.filter((i) => i.productId !== productId)
         : prev.map((i) =>
-            i.productId === productId ? { ...i, cantidad: Math.min(999, cantidad) } : i,
+            i.productId === productId
+              ? { ...i, cantidad: Math.min(999, cantidad) }
+              : i,
           ),
     );
   }, []);
