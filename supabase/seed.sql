@@ -490,3 +490,17 @@ insert into public.audit_logs (workspace_id, user_id, action, entity, entity_id,
   ('11111111-0000-4000-8000-000000000001', '22222222-0000-4000-8000-000000000001', 'RECIBIR_IMPORTACION', 'import', '55555555-0000-4000-8000-000000000001', '{}', '2026-07-18 09:00:00-04'),
   ('11111111-0000-4000-8000-000000000001', '22222222-0000-4000-8000-000000000001', 'PUBLICAR_PRODUCTO', 'product', '33333333-0000-4000-8000-000000000001', '{}', '2026-07-18 09:05:00-04'),
   ('11111111-0000-4000-8000-000000000001', '22222222-0000-4000-8000-000000000001', 'ANULAR_VENTA', 'sale', '88888888-0000-4000-8000-000000000006', '{"motivo":"Cliente desistió de la compra"}', '2026-09-20 15:20:00-04');
+
+-- Rubro de los productos demo (ver 0007_product_rubro_attributes.sql).
+update public.products p
+set rubro = 'TECNOLOGIA'
+from public.seller_workspaces w
+where w.id = p.workspace_id
+  and w.slug = 'andes-import';
+
+update public.catalog_listings cl
+set rubro = p.rubro,
+    attributes = p.attributes
+from public.products p
+where p.id = cl.product_id;
+
