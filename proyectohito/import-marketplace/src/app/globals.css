@@ -21,7 +21,16 @@
 .aveli-portada img { border-radius: 50%; object-fit: contain; }
 .aveli-pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2rem; background: #541520; color: #f3ebde; padding: 2rem; }
 .aveli-pie a:hover { text-decoration: underline; }
-@media (max-width: 640px) { .aveli-portada { flex-direction: column; text-align: center; padding: 1.5rem; } }
+
+/* Estilos de portadas de tienda (didácticas y visuales estilo AVÉLI) */
+.tienda-portada { display: flex; align-items: center; gap: 2rem; padding: 2rem; border: 1px solid #e2e8f0; border-radius: 1rem; background: #ffffff; }
+.smaylan-portada { border-color: #fbcfe8; background: #fffdfd; }
+.capri-portada { border-color: #fde68a; background: #fffdfa; }
+.trencito-portada { border-color: #fecdd3; background: #fffbfb; }
+
+@media (max-width: 640px) {
+  .aveli-portada, .tienda-portada { flex-direction: column; text-align: center; padding: 1.5rem; }
+}
 
 @layer base {
   html {

@@ -51,7 +51,7 @@ export const productoSchema = z
     name: z.string().trim().min(2, "Nombre requerido").max(160),
     description: z.string().trim().max(4000).optional().or(z.literal("")),
     category: z.string().trim().min(1, "Categoría requerida").max(80),
-    image_url: z.string().max(1000).refine(v => !v || /^\/aveli\/[\w-]+\.png$/.test(v) || /^https?:\/\//.test(v), "URL de imagen inválida").optional(),
+    image_url: z.string().max(1000).refine(v => !v || /^\/[\w-]+\/[\w.-]+$/.test(v) || /^https?:\/\//.test(v), "URL de imagen inválida").optional(),
     sizes: z.string().trim().max(200).optional(),
     colors: z.string().trim().max(500).optional(),
     catalog_availability: z.enum(["Disponible", "Agotado", "Consultar disponibilidad"]).optional(),

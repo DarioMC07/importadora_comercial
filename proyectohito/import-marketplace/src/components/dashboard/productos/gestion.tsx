@@ -43,10 +43,30 @@ export interface Producto {
 }
 
 const vacio: ProductoForm = {
-  sku: "", name: "", description: "", category: "",
-  base_cost: "0", sale_price: "0", freight_alloc: "0", duty_alloc: "0", other_alloc: "0",
-  dim_length: "", dim_width: "", dim_height: "", dim_unit: "cm", weight_kg: "",
-  min_stock: 0, unit: "unidad", origin_country: "", origin_public: false, notes: "", active: true,
+  sku: "",
+  name: "",
+  description: "",
+  category: "",
+  image_url: "",
+  sizes: "",
+  colors: "",
+  catalog_availability: "Disponible",
+  base_cost: "0",
+  sale_price: "0",
+  freight_alloc: "0",
+  duty_alloc: "0",
+  other_alloc: "0",
+  dim_length: "",
+  dim_width: "",
+  dim_height: "",
+  dim_unit: "cm",
+  weight_kg: "",
+  min_stock: 0,
+  unit: "unidad",
+  origin_country: "",
+  origin_public: true,
+  notes: "",
+  active: true,
 };
 
 function aNum(v: string | number | undefined): number {
@@ -54,9 +74,18 @@ function aNum(v: string | number | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function GestionProductos({ productos, esAveli = false }: { productos: Producto[]; esAveli?: boolean }) {
+export function GestionProductos({
+  productos,
+  esAveli = false,
+  workspaceNombre = "Catálogo",
+}: {
+  productos: Producto[];
+  esAveli?: boolean;
+  workspaceNombre?: string;
+}) {
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("Todos");
+  const [vista, setVista] = useState<"cuadricula" | "tabla">("cuadricula");
   const [subiendo, setSubiendo] = useState(false);
   const [editando, setEditando] = useState<Producto | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -65,24 +94,31 @@ export function GestionProductos({ productos, esAveli = false }: { productos: Pr
 
   const form = useForm<ProductoForm, unknown, ProductoInput>({
     resolver: zodResolver(productoSchema),
-    defaultValues: esAveli ? { ...vacio, sizes: "XS, S, M, L, XL", colors: "", image_url: "", catalog_availability: "Consultar disponibilidad" } : vacio,
+    defaultValues: esAveli ? { ...vacio, sizes: "XS, S, M, L, XL" } : vacio,
   });
+
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("nuevo") === "1") setMostrarForm(true);
   }, []);
 
   const watch = form.watch();
   const landed =
-    aNum(watch.base_cost ?? "0") + aNum(watch.freight_alloc ?? "0") +
-    aNum(watch.duty_alloc ?? "0") + aNum(watch.other_alloc ?? "0");
+    aNum(watch.base_cost ?? "0") +
+    aNum(watch.freight_alloc ?? "0") +
+    aNum(watch.duty_alloc ?? "0") +
+    aNum(watch.other_alloc ?? "0");
 
-  const filtrados = productos.filter((p) =>
-    `${p.sku} ${p.name} ${p.category}`.toLowerCase().includes(busqueda.toLowerCase()) && (categoria === "Todos" || p.category === categoria),
+  const categorias = ["Todos", ...Array.from(new Set(productos.map((p) => p.category).filter(Boolean)))];
+
+  const filtrados = productos.filter(
+    (p) =>
+      `${p.sku} ${p.name} ${p.category} ${p.description ?? ""}`.toLowerCase().includes(busqueda.toLowerCase()) &&
+      (categoria === "Todos" || p.category === categoria),
   );
 
   function abrirNuevo() {
     setEditando(null);
-    form.reset(esAveli ? { ...vacio, sizes: "XS, S, M, L, XL", colors: "", image_url: "", catalog_availability: "Consultar disponibilidad" } : vacio);
+    form.reset(esAveli ? { ...vacio, sizes: "XS, S, M, L, XL" } : vacio);
     setMostrarForm(true);
     setMensaje(null);
   }
@@ -90,17 +126,30 @@ export function GestionProductos({ productos, esAveli = false }: { productos: Pr
   function abrirEdicion(p: Producto) {
     setEditando(p);
     form.reset({
-      sku: p.sku, name: p.name, description: p.description ?? "", category: p.category,
-      base_cost: String(p.base_cost), sale_price: String(p.sale_price),
-      freight_alloc: String(p.freight_alloc), duty_alloc: String(p.duty_alloc),
+      sku: p.sku,
+      name: p.name,
+      description: p.description ?? "",
+      category: p.category,
+      base_cost: String(p.base_cost),
+      sale_price: String(p.sale_price),
+      freight_alloc: String(p.freight_alloc),
+      duty_alloc: String(p.duty_alloc),
       other_alloc: String(p.other_alloc),
-      dim_length: p.dim_length?.toString() ?? "", dim_width: p.dim_width?.toString() ?? "",
-      dim_height: p.dim_height?.toString() ?? "", dim_unit: p.dim_unit as "cm" | "m" | "in",
+      dim_length: p.dim_length?.toString() ?? "",
+      dim_width: p.dim_width?.toString() ?? "",
+      dim_height: p.dim_height?.toString() ?? "",
+      dim_unit: (p.dim_unit as "cm" | "m" | "in") || "cm",
       weight_kg: p.weight_kg?.toString() ?? "",
-      min_stock: p.min_stock, unit: p.unit,
-      origin_country: p.origin_country ?? "", origin_public: p.origin_public,
-      notes: p.notes ?? "", active: p.active,
-      ...(esAveli && { image_url: p.image_url ?? "", sizes: p.sizes ?? "", colors: p.colors ?? "", catalog_availability: p.catalog_availability ?? "Consultar disponibilidad" }),
+      min_stock: p.min_stock,
+      unit: p.unit,
+      origin_country: p.origin_country ?? "",
+      origin_public: p.origin_public,
+      notes: p.notes ?? "",
+      active: p.active,
+      image_url: p.image_url ?? "",
+      sizes: p.sizes ?? "",
+      colors: p.colors ?? "",
+      catalog_availability: p.catalog_availability ?? "Disponible",
     });
     setMostrarForm(true);
     setMensaje(null);
@@ -110,7 +159,7 @@ export function GestionProductos({ productos, esAveli = false }: { productos: Pr
     startTransition(async () => {
       const r = await guardarProducto(datos, editando?.id);
       if (!r.ok) {
-        setMensaje(r.error ?? "Error al guardar.");
+        setMensaje(r.error ?? "Error al guardar el producto.");
         return;
       }
       setMostrarForm(false);
@@ -120,169 +169,244 @@ export function GestionProductos({ productos, esAveli = false }: { productos: Pr
 
   function alternarPublicacion(p: Producto) {
     const texto = p.published
-      ? `¿Retirar "${p.name}" del catálogo público? El producto y su stock no se eliminan.`
-      : `¿Publicar "${p.name}" en el catálogo? Solo se compartirán nombre, descripción, categoría, precio, imágenes y disponibilidad general.`;
+      ? `¿Retirar "${p.name}" del catálogo público?`
+      : `¿Publicar "${p.name}" en el catálogo público?`;
     if (!window.confirm(texto)) return;
     startTransition(async () => {
       const r = p.published ? await despublicarProducto(p.id) : await publicarProducto(p.id);
-      if (!r.ok) setMensaje(r.error ?? "No se pudo cambiar la publicación.");
+      if (!r.ok) setMensaje(r.error ?? "No se pudo cambiar el estado de publicación.");
     });
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="search"
-          placeholder="Buscar por SKU, nombre o categoría…"
-          className="campo max-w-xs"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          aria-label="Buscar productos"
-        />
-        <button type="button" className="btn-primario" onClick={abrirNuevo}>
-          + Agregar producto
-        </button>
-        {esAveli && <select aria-label="Filtrar categoría" className="campo max-w-xs" value={categoria} onChange={e=>setCategoria(e.target.value)}>{["Todos", ...new Set(productos.map(p=>p.category))].map(c=><option key={c}>{c}</option>)}</select>}
+    <div className="space-y-6">
+      {/* Barra de control y filtros */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            placeholder="Buscar por código, nombre o descripción…"
+            className="campo max-w-xs"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+          {categorias.length > 2 && (
+            <select
+              className="campo max-w-[200px]"
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              aria-label="Filtrar por categoría"
+            >
+              {categorias.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Selector de vista */}
+          <div className="inline-flex rounded-lg border border-slate-300 bg-white p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setVista("cuadricula")}
+              className={`rounded px-3 py-1 font-medium transition-colors ${
+                vista === "cuadricula" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Cuadrícula
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista("tabla")}
+              className={`rounded px-3 py-1 font-medium transition-colors ${
+                vista === "tabla" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Tabla
+            </button>
+          </div>
+
+          <button type="button" className="btn-primario" onClick={abrirNuevo}>
+            + Agregar producto
+          </button>
+        </div>
       </div>
-      {esAveli && <p className="text-sm">{filtrados.length} prendas · Precios en bolivianos · Colores aproximados de las muestras del catálogo.</p>}
 
       {mensaje && (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mensaje}</p>
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {mensaje}
+        </div>
       )}
 
+      {/* Formulario de Alta y Edición para TODOS los administradores */}
       {mostrarForm && (
         <form
           onSubmit={form.handleSubmit(enviar)}
-          className="tarjeta grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3"
+          className="tarjeta grid grid-cols-1 gap-4 border border-slate-200 p-6 sm:grid-cols-2 lg:grid-cols-3"
           noValidate
           aria-label={editando ? "Editar producto" : "Nuevo producto"}
         >
-          <h2 className="font-semibold text-slate-900 sm:col-span-2 lg:col-span-3">
-            {editando ? `Editar ${editando.name}` : "Nuevo producto"}
-          </h2>
+          <div className="border-b border-slate-200 pb-3 sm:col-span-2 lg:col-span-3">
+            <h2 className="text-xl font-bold text-slate-900">
+              {editando ? `Editar: ${editando.name}` : "Registrar nuevo producto en catálogo"}
+            </h2>
+            <p className="text-xs text-slate-500">
+              Los cambios se reflejarán tanto en tu panel privado como en el catálogo público si el producto está publicado.
+            </p>
+          </div>
 
           <div>
-            <label htmlFor="pr-sku" className="etiqueta">SKU / código *</label>
+            <label htmlFor="pr-sku" className="etiqueta">
+              SKU / Código identificador *
+            </label>
             <input id="pr-sku" className="campo" maxLength={60} {...form.register("sku")} />
             {form.formState.errors.sku && <p className="mensaje-error">{form.formState.errors.sku.message}</p>}
           </div>
+
           <div className="lg:col-span-2">
-            <label htmlFor="pr-name" className="etiqueta">Nombre comercial *</label>
+            <label htmlFor="pr-name" className="etiqueta">
+              Nombre comercial del producto *
+            </label>
             <input id="pr-name" className="campo" maxLength={160} {...form.register("name")} />
             {form.formState.errors.name && <p className="mensaje-error">{form.formState.errors.name.message}</p>}
           </div>
+
           <div>
-            <label htmlFor="pr-cat" className="etiqueta">Categoría *</label>
+            <label htmlFor="pr-cat" className="etiqueta">
+              Categoría *
+            </label>
             <input id="pr-cat" className="campo" maxLength={80} {...form.register("category")} />
             {form.formState.errors.category && <p className="mensaje-error">{form.formState.errors.category.message}</p>}
           </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="pr-desc" className="etiqueta">Descripción pública</label>
-            <textarea id="pr-desc" className="campo" rows={2} maxLength={4000} {...form.register("description")} />
-          </div>
-
-          {esAveli && <>
-            <div><label htmlFor="pr-img" className="etiqueta">Fotografía (hasta 2 MB)</label><input id="pr-img" type="file" accept="image/jpeg,image/png,image/webp" className="campo" disabled={subiendo || pendiente} onChange={async e=>{
-              const file=e.target.files?.[0]; if(!file) return;
-              setSubiendo(true); setMensaje(null);
-              try { const data=new FormData(); data.set("imagen",file); const r=await subirImagenProducto(data); if(r.ok && r.url) form.setValue("image_url",r.url); else setMensaje(r.error ?? "Error al subir imagen."); }
-              catch { setMensaje("No se pudo subir la imagen."); } finally { setSubiendo(false); }
-            }} /><p className="mt-1 text-xs">{subiendo ? "Subiendo…" : watch.image_url ? "Imagen lista para guardar." : "JPG, PNG o WebP"}</p></div>
-            <div><label htmlFor="pr-sizes" className="etiqueta">Tallas (separadas por comas)</label><input id="pr-sizes" className="campo" {...form.register("sizes")} /></div>
-            <div><label htmlFor="pr-colors" className="etiqueta">Colores (nombres o códigos HEX, separados por comas)</label><input id="pr-colors" className="campo" placeholder="#541520, blanco, negro" {...form.register("colors")} /></div>
-            <div><label htmlFor="pr-disponible" className="etiqueta">Disponibilidad comercial</label><select id="pr-disponible" className="campo" {...form.register("catalog_availability")}><option>Consultar disponibilidad</option><option>Disponible</option><option>Agotado</option></select><p className="mt-1 text-xs">Independiente de las cantidades del inventario.</p></div>
-          </>}
-
-          <fieldset className="contents">
-            <legend className="sr-only">Costos y precio (BOB)</legend>
-            <div>
-              <label htmlFor="pr-base" className="etiqueta">Costo base de compra *</label>
-              <input id="pr-base" inputMode="decimal" className="campo" {...form.register("base_cost")} />
-              {form.formState.errors.base_cost && <p className="mensaje-error">{form.formState.errors.base_cost.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="pr-flete" className="etiqueta">Transporte asignado</label>
-              <input id="pr-flete" inputMode="decimal" className="campo" {...form.register("freight_alloc")} />
-            </div>
-            <div>
-              <label htmlFor="pr-arancel" className="etiqueta">Aranceles / impuestos</label>
-              <input id="pr-arancel" inputMode="decimal" className="campo" {...form.register("duty_alloc")} />
-            </div>
-            <div>
-              <label htmlFor="pr-otros" className="etiqueta">Otros costos</label>
-              <input id="pr-otros" inputMode="decimal" className="campo" {...form.register("other_alloc")} />
-            </div>
-            <div>
-              <label htmlFor="pr-precio" className="etiqueta">Precio de venta *</label>
-              <input id="pr-precio" inputMode="decimal" className="campo" {...form.register("sale_price")} />
-              {form.formState.errors.sale_price && <p className="mensaje-error">{form.formState.errors.sale_price.message}</p>}
-            </div>
-            <div className="rounded-lg bg-brand-50 p-3 text-sm">
-              <p className="text-brand-900">Costo puesto en almacén (unitario)</p>
-              <p className="text-lg font-bold text-brand-800">{formatoDineroDecimal(landed)}</p>
-            </div>
-          </fieldset>
 
           <div>
-            <label htmlFor="pr-min" className="etiqueta">Stock mínimo</label>
-            <input id="pr-min" type="number" min={0} className="campo" {...form.register("min_stock", { valueAsNumber: true })} />
-            {form.formState.errors.min_stock && <p className="mensaje-error">{form.formState.errors.min_stock.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="pr-unit" className="etiqueta">Unidad de medida</label>
-            <input id="pr-unit" className="campo" maxLength={20} {...form.register("unit")} />
-          </div>
-          <div>
-            <label htmlFor="pr-origen" className="etiqueta">País de origen</label>
-            <input id="pr-origen" className="campo" maxLength={80} {...form.register("origin_country")} />
-          </div>
-
-          <fieldset className="contents">
-            <legend className="sr-only">Dimensiones (opcional)</legend>
-            <div>
-              <label htmlFor="pr-largo" className="etiqueta">Largo</label>
-              <input id="pr-largo" inputMode="decimal" className="campo" {...form.register("dim_length")} />
-            </div>
-            <div>
-              <label htmlFor="pr-ancho" className="etiqueta">Ancho</label>
-              <input id="pr-ancho" inputMode="decimal" className="campo" {...form.register("dim_width")} />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label htmlFor="pr-alto" className="etiqueta">Alto</label>
-                <input id="pr-alto" inputMode="decimal" className="campo" {...form.register("dim_height")} />
-              </div>
-              <div>
-                <label htmlFor="pr-dunit" className="etiqueta">Unidad</label>
-                <select id="pr-dunit" className="campo" {...form.register("dim_unit")}>
-                  <option value="cm">cm</option>
-                  <option value="m">m</option>
-                  <option value="in">in</option>
-                </select>
-              </div>
-            </div>
-          </fieldset>
-
-          <div className="flex flex-col gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" className="h-4 w-4" {...form.register("origin_public")} />
-              Mostrar país de origen en el catálogo
+            <label htmlFor="pr-precio" className="etiqueta">
+              Precio de venta al público (BOB) *
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" className="h-4 w-4" {...form.register("active")} />
-              Producto activo
+            <input id="pr-precio" inputMode="decimal" className="campo" {...form.register("sale_price")} />
+            {form.formState.errors.sale_price && <p className="mensaje-error">{form.formState.errors.sale_price.message}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="pr-disponible" className="etiqueta">
+              Disponibilidad comercial
             </label>
+            <select id="pr-disponible" className="campo" {...form.register("catalog_availability")}>
+              <option value="Disponible">Disponible</option>
+              <option value="Consultar disponibilidad">Consultar disponibilidad</option>
+              <option value="Agotado">Agotado</option>
+            </select>
           </div>
 
           <div className="sm:col-span-2 lg:col-span-3">
-            <label htmlFor="pr-notes" className="etiqueta">Notas privadas</label>
-            <textarea id="pr-notes" className="campo" rows={2} maxLength={2000} {...form.register("notes")} />
+            <label htmlFor="pr-desc" className="etiqueta">
+              Descripción detallada
+            </label>
+            <textarea
+              id="pr-desc"
+              className="campo"
+              rows={3}
+              maxLength={4000}
+              placeholder="Presentación, características, fórmula o ingredientes..."
+              {...form.register("description")}
+            />
           </div>
 
-          <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
+          {/* Fotografía del producto */}
+          <div className="sm:col-span-2 lg:col-span-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <label htmlFor="pr-img" className="etiqueta font-semibold text-slate-800">
+              Fotografía del producto
+            </label>
+            <div className="mt-2 flex flex-wrap items-center gap-4">
+              <input
+                id="pr-img"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="campo max-w-sm"
+                disabled={subiendo || pendiente}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setSubiendo(true);
+                  setMensaje(null);
+                  try {
+                    const data = new FormData();
+                    data.set("imagen", file);
+                    const r = await subirImagenProducto(data);
+                    if (r.ok && r.url) {
+                      form.setValue("image_url", r.url);
+                    } else {
+                      setMensaje(r.error ?? "Error al subir la imagen.");
+                    }
+                  } catch {
+                    setMensaje("No se pudo subir la imagen.");
+                  } finally {
+                    setSubiendo(false);
+                  }
+                }}
+              />
+              <div className="text-xs text-slate-600">
+                {subiendo ? (
+                  <span className="font-semibold text-brand-700">Subiendo archivo a almacenamiento…</span>
+                ) : watch.image_url ? (
+                  <span className="font-medium text-emerald-700">Imagen vinculada: {watch.image_url}</span>
+                ) : (
+                  "Formatos aceptados: JPG, PNG o WebP (hasta 2 MB)."
+                )}
+              </div>
+            </div>
+            {watch.image_url && (
+              <div className="mt-3 flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={watch.image_url}
+                  alt="Vista previa"
+                  className="h-20 w-20 rounded border border-slate-300 bg-white object-contain p-1"
+                />
+                <button
+                  type="button"
+                  className="text-xs text-red-600 underline hover:text-red-800"
+                  onClick={() => form.setValue("image_url", "")}
+                >
+                  Quitar imagen
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="pr-origen" className="etiqueta">
+              País de origen
+            </label>
+            <input id="pr-origen" className="campo" maxLength={80} {...form.register("origin_country")} />
+          </div>
+
+          <div>
+            <label htmlFor="pr-unit" className="etiqueta">
+              Unidad de medida
+            </label>
+            <input id="pr-unit" className="campo" maxLength={20} {...form.register("unit")} />
+          </div>
+
+          <div>
+            <label htmlFor="pr-min" className="etiqueta">
+              Alerta de stock mínimo
+            </label>
+            <input
+              id="pr-min"
+              type="number"
+              min={0}
+              className="campo"
+              {...form.register("min_stock", { valueAsNumber: true })}
+            />
+          </div>
+
+          <div className="flex gap-2 sm:col-span-2 lg:col-span-3 border-t border-slate-200 pt-4">
             <button type="submit" disabled={pendiente || subiendo} className="btn-primario">
-              {pendiente ? "Guardando…" : "Guardar"}
+              {pendiente ? "Guardando cambios…" : "Guardar producto"}
             </button>
             <button type="button" className="btn-secundario" onClick={() => setMostrarForm(false)}>
               Cancelar
@@ -291,80 +415,175 @@ export function GestionProductos({ productos, esAveli = false }: { productos: Pr
         </form>
       )}
 
-      {esAveli ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {filtrados.length === 0 && <p className="py-8">No hay productos para esta búsqueda.</p>}
-        {filtrados.map(p=><article key={p.id} className="tarjeta overflow-hidden">
-          {p.image_url ? <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.image_url} alt={p.name} className="h-72 w-full bg-[#f3ebde] object-contain" />
-          </> : <div className="flex h-48 items-center justify-center bg-[#f3ebde] font-serif text-2xl">AVÉLI · Sin fotografía</div>}
-          <div className="space-y-3 p-5"><p className="text-xs uppercase tracking-wider">{p.category} · {p.sku}</p><h2 className="font-serif text-2xl">{p.name}</h2><p className="text-2xl font-semibold">Bs. {Number(p.sale_price).toFixed(2)}</p><p className="text-sm">{p.description}</p>
-          <p className="text-sm"><strong>Tallas:</strong> {p.sizes || "Por definir"}</p>
-          <div className="flex flex-wrap items-center gap-2 text-sm"><strong>Colores:</strong>{p.colors?.split(",").filter(Boolean).map((c,i)=>/^#[0-9a-f]{6}$/i.test(c.trim()) ? <span key={i} title={`Muestra ${i+1}: ${c.trim()}`} aria-label={`Color aproximado ${c.trim()}`} className="inline-block h-6 w-6 rounded-full border border-stone-400" style={{backgroundColor:c.trim()}} /> : <span key={i}>{c.trim()}</span>)}</div>
-          <p className="text-sm">{p.active ? p.catalog_availability : "Inactivo"}</p><p className="text-xs text-slate-500">Inventario registrado: {p.stock} {p.unit}</p>
-          <div className="flex flex-wrap gap-2"><button type="button" className="btn-primario" onClick={()=>abrirEdicion(p)}>Editar producto</button><a className="btn-secundario" target="_blank" rel="noreferrer" href={`https://wa.me/59175672963?text=${encodeURIComponent(`Hola AVÉLI, quisiera consultar ${p.name} (${p.sku}), talla: , color: .`)}`}>Consultar</a></div>
-          </div>
-        </article>)}
-      </div> : <div className="tarjeta overflow-x-auto">
-        <table className="w-full min-w-[860px] text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th scope="col" className="px-4 py-3">SKU</th>
-              <th scope="col" className="px-4 py-3">Producto</th>
-              <th scope="col" className="px-4 py-3">Precio</th>
-              <th scope="col" className="px-4 py-3">Costo puesto</th>
-              <th scope="col" className="px-4 py-3">Stock</th>
-              <th scope="col" className="px-4 py-3">Catálogo</th>
-              <th scope="col" className="px-4 py-3"><span className="sr-only">Acciones</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filtrados.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-                  {busqueda ? "Sin resultados." : "Aún no registras productos."}
-                </td>
-              </tr>
-            )}
-            {filtrados.map((p) => (
-              <tr key={p.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-mono text-xs">{p.sku}</td>
-                <td className="px-4 py-3">
-                  <p className="font-medium text-slate-900">{p.name}</p>
-                  <p className="text-xs text-slate-500">{p.category}{!p.active && " · inactivo"}</p>
-                </td>
-                <td className="px-4 py-3">{formatoDineroDecimal(p.sale_price)}</td>
-                <td className="px-4 py-3 text-slate-600">{formatoDineroDecimal(p.landed_unit_cost)}</td>
-                <td className="px-4 py-3">
-                  <Badge tono={p.stock === 0 ? "rojo" : p.stock <= p.min_stock ? "ambar" : "verde"}>
-                    {p.stock} {p.unit}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge tono={p.published ? "azul" : "gris"}>
-                    {p.published ? "Publicado" : "Borrador"}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-1">
-                    <button type="button" className="btn-fantasma" onClick={() => abrirEdicion(p)}>
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pendiente}
-                      className={p.published ? "btn-fantasma text-amber-700" : "btn-fantasma text-brand-700"}
-                      onClick={() => alternarPublicacion(p)}
-                    >
-                      {p.published ? "Despublicar" : "Publicar"}
-                    </button>
+      {/* Vista de Catálogo en Cuadrícula Didáctica y Visual (Estilo AVÉLI) */}
+      {vista === "cuadricula" ? (
+        <div>
+          {filtrados.length === 0 ? (
+            <div className="tarjeta py-12 text-center text-slate-500">
+              <p className="text-base font-medium">No se encontraron productos para esta búsqueda.</p>
+              <p className="mt-1 text-sm text-slate-400">Intenta con otro término o limpia los filtros.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filtrados.map((p) => (
+                <article
+                  key={p.id}
+                  className="tarjeta flex flex-col overflow-hidden border border-slate-200/80 bg-white shadow-sm transition-shadow hover:shadow-md"
+                >
+                  {/* Imagen del producto */}
+                  <div className="relative flex h-64 w-full items-center justify-center border-b border-slate-100 bg-slate-50/50 p-4">
+                    {p.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.image_url}
+                        alt={p.name}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400">
+                        <span className="font-serif text-3xl font-bold tracking-wider text-slate-300">
+                          {p.sku.slice(0, 3)}
+                        </span>
+                        <span className="mt-2 text-xs">Sin fotografía registrada</span>
+                      </div>
+                    )}
+                    <div className="absolute right-3 top-3">
+                      <Badge tono={p.published ? "azul" : "gris"}>
+                        {p.published ? "Catálogo público" : "Borrador privado"}
+                      </Badge>
+                    </div>
                   </div>
-                </td>
+
+                  {/* Datos del producto */}
+                  <div className="flex flex-1 flex-col justify-between p-5">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        <span>{p.category}</span>
+                        <span className="font-mono text-slate-400">{p.sku}</span>
+                      </div>
+
+                      <h3 className="font-serif text-xl font-bold leading-snug text-slate-900">{p.name}</h3>
+
+                      <p className="text-2xl font-bold tracking-tight text-slate-900">
+                        Bs. {Number(p.sale_price).toFixed(2)}
+                      </p>
+
+                      {p.description && (
+                        <p className="line-clamp-3 text-xs leading-relaxed text-slate-600">{p.description}</p>
+                      )}
+
+                      <div className="pt-2 text-xs text-slate-500">
+                        <p>
+                          <span className="font-semibold text-slate-700">Disponibilidad:</span>{" "}
+                          {p.catalog_availability || (p.stock > 0 ? "Disponible" : "Agotado")}
+                        </p>
+                        {p.origin_country && (
+                          <p>
+                            <span className="font-semibold text-slate-700">Origen:</span> {p.origin_country}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                      <button
+                        type="button"
+                        className="btn-primario flex-1 text-xs"
+                        onClick={() => abrirEdicion(p)}
+                      >
+                        Editar producto
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pendiente}
+                        className={`btn-secundario text-xs ${p.published ? "text-amber-800" : "text-slate-700"}`}
+                        onClick={() => alternarPublicacion(p)}
+                      >
+                        {p.published ? "Despublicar" : "Publicar"}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Vista de Tabla Administrativa */
+        <div className="tarjeta overflow-x-auto border border-slate-200">
+          <table className="w-full min-w-[860px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                <th scope="col" className="px-4 py-3">
+                  SKU
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Producto
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Precio
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Disponibilidad
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Estado
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  <span className="sr-only">Acciones</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>}
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {filtrados.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                    {busqueda ? "Sin resultados para la búsqueda." : "No hay productos registrados."}
+                  </td>
+                </tr>
+              ) : (
+                filtrados.map((p) => (
+                  <tr key={p.id} className="hover:bg-slate-50/80">
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">{p.sku}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-slate-900">{p.name}</p>
+                      <p className="text-xs text-slate-500">{p.category}</p>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-900">
+                      {formatoDineroDecimal(p.sale_price)}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      {p.catalog_availability || (p.stock > 0 ? "Disponible" : "Agotado")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge tono={p.published ? "azul" : "gris"}>
+                        {p.published ? "Publicado" : "Borrador"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <button type="button" className="btn-fantasma text-xs" onClick={() => abrirEdicion(p)}>
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pendiente}
+                          className={p.published ? "btn-fantasma text-xs text-amber-700" : "btn-fantasma text-xs text-brand-700"}
+                          onClick={() => alternarPublicacion(p)}
+                        >
+                          {p.published ? "Despublicar" : "Publicar"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

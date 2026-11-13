@@ -4,14 +4,13 @@ import { formatoDineroDecimal, formatoEntero } from "@/lib/format";
 import { GraficoVentasPorDia, GraficoFormaPago, GraficoTopProductos } from "@/components/dashboard/graficos";
 import { Badge } from "@/components/ui/badge";
 import { requerirVendedor } from "@/lib/auth";
-import { AveliBienvenida, AveliInformacion } from "@/components/dashboard/aveli";
+import { TiendaBienvenida, TiendaInformacion } from "@/components/dashboard/tienda";
 
 export const dynamic = "force-dynamic";
 
 export default async function PaginaResumen() {
   const r = await obtenerResumen();
   const sesion = await requerirVendedor();
-  const esAveli = sesion.workspaceSlug === "aveli";
 
   const tarjetas = [
     { titulo: "Ventas de hoy", valor: formatoEntero(r.ventasHoy), detalle: formatoDineroDecimal(r.ingresosHoy) },
@@ -22,7 +21,7 @@ export default async function PaginaResumen() {
 
   return (
     <div className="space-y-6">
-      {esAveli ? <AveliBienvenida /> : <h1 className="text-2xl font-bold text-slate-900">Resumen</h1>}
+      <TiendaBienvenida slug={sesion.workspaceSlug} nombre={sesion.workspaceNombre} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {tarjetas.map((t) => (
@@ -92,7 +91,8 @@ export default async function PaginaResumen() {
           )}
         </section>
       </div>
-      {esAveli && <AveliInformacion />}
+
+      <TiendaInformacion slug={sesion.workspaceSlug} />
     </div>
   );
 }

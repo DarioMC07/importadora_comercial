@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:rls": "node scripts/run-rls-tests.mjs",
-    "seed": "node scripts/seed.mjs",
+    "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "seed:catalogs": "node --env-file=.env.local scripts/seed-new-catalogs.mjs",
     "format": "prettier --write .",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },

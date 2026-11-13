@@ -22,9 +22,9 @@ if (!url || !serviceKey) {
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
 const USUARIOS = [
-  { id: "22222222-0000-4000-8000-000000000001", email: "vendedor1@demo.importhub.test", nombre: "Mariana Quispe" },
-  { id: "22222222-0000-4000-8000-000000000002", email: "vendedor2@demo.importhub.test", nombre: "Jorge Mamani" },
-  { id: "22222222-0000-4000-8000-000000000003", email: "vendedor3@demo.importhub.test", nombre: "Lucía Fernández" },
+  { id: "22222222-0000-4000-8000-000000000001", email: "smaylan@demo.importhub.test", nombre: "Smaylan Cosmética", password: "Smaylan-2026!" },
+  { id: "22222222-0000-4000-8000-000000000002", email: "capri@demo.importhub.test", nombre: "Chocolates Capri", password: "Capri-2026!" },
+  { id: "22222222-0000-4000-8000-000000000003", email: "trencito@demo.importhub.test", nombre: "Trencito Express", password: "Trencito-2026!" },
   { id: "22222222-0000-4000-8000-000000000004", email: "vendedor4@demo.importhub.test", nombre: "Pedro Rojas" },
   { id: "22222222-0000-4000-8000-000000000005", email: "aveli@demo.importhub.test", nombre: "AVÉLI", password: "Aveli-2026!" },
 ];

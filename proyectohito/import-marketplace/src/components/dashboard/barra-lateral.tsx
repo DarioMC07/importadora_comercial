@@ -6,15 +6,15 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const secciones = [
-  { href: "/dashboard", etiqueta: "Resumen", icono: "▤" },
-  { href: "/dashboard/importaciones", etiqueta: "Importaciones", icono: "🚢" },
-  { href: "/dashboard/proveedores", etiqueta: "Proveedores", icono: "🏭" },
-  { href: "/dashboard/productos", etiqueta: "Productos", icono: "📦" },
-  { href: "/dashboard/inventario", etiqueta: "Inventario", icono: "🗃" },
-  { href: "/dashboard/solicitudes", etiqueta: "Solicitudes", icono: "📨" },
-  { href: "/dashboard/ventas", etiqueta: "Ventas", icono: "💰" },
-  { href: "/dashboard/clientes", etiqueta: "Clientes", icono: "👥" },
-  { href: "/dashboard/reportes", etiqueta: "Reportes", icono: "📊" },
+  { href: "/dashboard", etiqueta: "Resumen" },
+  { href: "/dashboard/productos", etiqueta: "Productos" },
+  { href: "/dashboard/solicitudes", etiqueta: "Solicitudes" },
+  { href: "/dashboard/ventas", etiqueta: "Ventas" },
+  { href: "/dashboard/clientes", etiqueta: "Clientes" },
+  { href: "/dashboard/inventario", etiqueta: "Inventario" },
+  { href: "/dashboard/importaciones", etiqueta: "Importaciones" },
+  { href: "/dashboard/proveedores", etiqueta: "Proveedores" },
+  { href: "/dashboard/reportes", etiqueta: "Reportes" },
 ] as const;
 
 const trazosIconos: Record<string, string> = {
@@ -31,8 +31,17 @@ const trazosIconos: Record<string, string> = {
 
 function IconoFormal({ nombre }: { nombre: string }) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0">
-      <path d={trazosIconos[nombre]} />
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+    >
+      <path d={trazosIconos[nombre] || trazosIconos.Resumen} />
     </svg>
   );
 }
@@ -40,10 +49,12 @@ function IconoFormal({ nombre }: { nombre: string }) {
 export function BarraLateral({
   nombreEspacio,
   nombreUsuario,
+  workspaceSlug = "",
   esAveli = false,
 }: {
   nombreEspacio: string;
   nombreUsuario: string;
+  workspaceSlug?: string;
   esAveli?: boolean;
 }) {
   const pathname = usePathname();
@@ -62,12 +73,12 @@ export function BarraLateral({
         aria-controls="barra-lateral"
         onClick={() => setAbierto((v) => !v)}
       >
-        {abierto ? "Cerrar menú" : "Menú"}
+        {abierto ? "Cerrar menú" : "Menú del panel"}
       </button>
 
       {abierto && (
         <div
-          className="fixed inset-0 z-30 bg-slate-900/50 lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-900/60 lg:hidden"
           aria-hidden="true"
           onClick={() => setAbierto(false)}
         />
@@ -80,19 +91,68 @@ export function BarraLateral({
           abierto ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="border-b border-slate-700 p-4">
-          <Link href={esAveli ? "/dashboard" : "/"} className="text-lg font-bold text-white">
-            {esAveli ? <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/aveli/logo.png" alt="AVÉLI" width={120} height={120} className="mx-auto mb-3 rounded-full" />
-              <span className="block text-center font-serif text-2xl tracking-widest">AVÉLI</span>
-            </> : "ImportHub"}
+        {/* Cabecera del Sidebar */}
+        <div className="border-b border-slate-800 p-5">
+          <Link href="/dashboard" className="block text-white transition-opacity hover:opacity-90">
+            {workspaceSlug === "aveli" ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/aveli/logo.png"
+                  alt="AVÉLI"
+                  width={90}
+                  height={90}
+                  className="mx-auto mb-2 rounded-full border border-rose-200/20"
+                />
+                <span className="block text-center font-serif text-xl font-bold tracking-widest">AVÉLI</span>
+              </>
+            ) : workspaceSlug === "smaylan" ? (
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-900 text-white font-serif font-bold text-lg">
+                  SM
+                </div>
+                <div>
+                  <span className="block font-serif text-lg font-bold tracking-wide">Smaylan</span>
+                  <span className="block text-[11px] text-rose-300">Cosmética Facial</span>
+                </div>
+              </div>
+            ) : workspaceSlug === "chocolates-capri" ? (
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-900 text-amber-100 font-serif font-bold text-lg">
+                  CP
+                </div>
+                <div>
+                  <span className="block font-serif text-lg font-bold tracking-wide">Chocolates Capri</span>
+                  <span className="block text-[11px] text-amber-300">Nestlé Capri</span>
+                </div>
+              </div>
+            ) : workspaceSlug === "trencito" ? (
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-900 text-white font-serif font-bold text-lg">
+                  TR
+                </div>
+                <div>
+                  <span className="block font-serif text-lg font-bold tracking-wide">Trencito</span>
+                  <span className="block text-[11px] text-red-300">Express</span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <span className="block text-lg font-bold tracking-wide">ImportHub</span>
+                <span className="block text-xs text-slate-400">{nombreEspacio}</span>
+              </div>
+            )}
           </Link>
-          <p className="mt-1 truncate text-sm text-slate-400" title={nombreEspacio}>
-            {nombreEspacio}
-          </p>
-          <p className="truncate text-xs text-slate-500">{nombreUsuario}</p>
+
+          <div className="mt-3 border-t border-slate-800/80 pt-3">
+            <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-400">
+              {nombreEspacio}
+            </p>
+            <p className="truncate text-xs text-slate-500">{nombreUsuario}</p>
+          </div>
         </div>
+
+        {/* Navegación formal sin emojis */}
         <nav aria-label="Menú del panel" className="flex-1 overflow-y-auto p-3">
           <ul className="space-y-1">
             {secciones.map((s) => (
@@ -102,25 +162,39 @@ export function BarraLateral({
                   aria-current={activo(s.href) ? "page" : undefined}
                   onClick={() => setAbierto(false)}
                   className={cn(
-                    "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     activo(s.href)
-                      ? "bg-brand-600 text-white"
+                      ? "bg-brand-600 text-white shadow-sm"
                       : "text-slate-300 hover:bg-slate-800 hover:text-white",
                   )}
                 >
-                  {esAveli ? <IconoFormal nombre={s.etiqueta} /> : <span aria-hidden="true">{s.icono}</span>}
-                  {s.etiqueta}
+                  <IconoFormal nombre={s.etiqueta} />
+                  <span>{s.etiqueta}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
-        <div className="border-t border-slate-700 p-3">
+
+        {/* Enlace al marketplace público */}
+        <div className="border-t border-slate-800 p-3">
           <Link
             href="/"
-            className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+            className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
           >
-            <span aria-hidden="true">←</span> Ver marketplace
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Ver marketplace público</span>
           </Link>
         </div>
       </aside>
