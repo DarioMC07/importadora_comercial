@@ -5,7 +5,9 @@ import { useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { productoSchema, type ProductoInput } from "@/lib/validators";
 import type { z } from "zod";
-import { guardarProducto, publicarProducto, despublicarProducto, subirImagenProducto } from "@/server/actions/productos";
+import { guardarProducto, publicarProducto, despublicarProducto, subirImagenGaleria, guardarImagenesProducto } from "@/server/actions/productos";
+import { imagenesIniciales, type FilaImagen, type ImagenGaleria, type ImagenGuardada } from "@/lib/galeria";
+import { GaleriaImagenes } from "@/components/dashboard/productos/galeria-imagenes";
 import { Badge } from "@/components/ui/badge";
 import { formatoDineroDecimal } from "@/lib/format";
 import { ETIQUETA_RUBRO, RUBROS, esRubro, normalizarAtributos, rubroMasUsado } from "@/lib/rubros";
@@ -44,6 +46,7 @@ export interface Producto {
   catalog_availability?: "Disponible" | "Agotado" | "Consultar disponibilidad";
   rubro?: string;
   attributes?: unknown;
+  product_images?: FilaImagen[];
 }
 
 const vacio: ProductoForm = {
@@ -92,7 +95,9 @@ export function GestionProductos({
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("Todos");
   const [vista, setVista] = useState<"cuadricula" | "tabla">("cuadricula");
-  const [subiendo, setSubiendo] = useState(false);
+  const [galeria, setGaleria] = useState<ImagenGaleria[]>([]);
+  const [galeriaCambiada, setGaleriaCambiada] = useState(false);
+  const [idGuardado, setIdGuardado] = useState<string | null>(null);
   const [editando, setEditando] = useState<Producto | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -127,6 +132,9 @@ export function GestionProductos({
   function abrirNuevo() {
     setEditando(null);
     form.reset(esAveli ? { ...vacio, rubro: rubroInicial, sizes: "XS, S, M, L, XL" } : { ...vacio, rubro: rubroInicial });
+    setGaleria([]);
+    setGaleriaCambiada(false);
+    setIdGuardado(null);
     setMostrarForm(true);
     setMensaje(null);
   }
@@ -161,13 +169,16 @@ export function GestionProductos({
       rubro: esRubro(p.rubro) ? p.rubro : "GENERAL",
       attributes: normalizarAtributos(p.attributes),
     });
+    setGaleria(imagenesIniciales(p.product_images ?? [], p.image_url ?? null));
+    setGaleriaCambiada(false);
+    setIdGuardado(null);
     setMostrarForm(true);
     setMensaje(null);
   }
 
   function enviar(datos: ProductoInput) {
     startTransition(async () => {
-      const r = await guardarProducto(datos, editando?.id);
+      const r = await guardarProducto(datos, editando?.id ?? idGuardado ?? undefined);
       if (!r.ok) {
         for (const [ruta, texto] of Object.entries(r.errores ?? {})) {
           form.setError(ruta as FieldPath<ProductoForm>, { message: texto });
@@ -175,6 +186,31 @@ export function GestionProductos({
         setMensaje(r.error ?? "Error al guardar el producto.");
         return;
       }
+      if (galeriaCambiada && r.id) {
+        setIdGuardado(r.id);
+        const finales: ImagenGuardada[] = [];
+        for (const item of galeria) {
+          if (item.archivo) {
+            const data = new FormData();
+            data.set("imagen", item.archivo);
+            data.set("productId", r.id);
+            const s = await subirImagenGaleria(data);
+            if (!s.ok || !s.storage_path || !s.public_url) {
+              setMensaje(`El producto se guardó, pero no se pudo subir «${item.nombre}». ${s.error ?? ""}`.trim());
+              return;
+            }
+            finales.push({ storage_path: s.storage_path, public_url: s.public_url });
+          } else if (item.storage_path && item.public_url) {
+            finales.push({ storage_path: item.storage_path, public_url: item.public_url });
+          }
+        }
+        const g = await guardarImagenesProducto(r.id, finales);
+        if (!g.ok) {
+          setMensaje(`El producto se guardó, pero no se pudieron guardar las imágenes. ${g.error ?? ""}`.trim());
+          return;
+        }
+      }
+      setIdGuardado(null);
       setMostrarForm(false);
       setMensaje(null);
     });
@@ -348,66 +384,14 @@ export function GestionProductos({
           <CamposRubro form={form} rubro={esRubro(watch.rubro) ? watch.rubro : "GENERAL"} />
 
           {/* Fotografía del producto */}
-          <div className="sm:col-span-2 lg:col-span-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <label htmlFor="pr-img" className="etiqueta font-semibold text-slate-800">
-              Fotografía del producto
-            </label>
-            <div className="mt-2 flex flex-wrap items-center gap-4">
-              <input
-                id="pr-img"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="campo max-w-sm"
-                disabled={subiendo || pendiente}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setSubiendo(true);
-                  setMensaje(null);
-                  try {
-                    const data = new FormData();
-                    data.set("imagen", file);
-                    const r = await subirImagenProducto(data);
-                    if (r.ok && r.url) {
-                      form.setValue("image_url", r.url);
-                    } else {
-                      setMensaje(r.error ?? "Error al subir la imagen.");
-                    }
-                  } catch {
-                    setMensaje("No se pudo subir la imagen.");
-                  } finally {
-                    setSubiendo(false);
-                  }
-                }}
-              />
-              <div className="text-xs text-slate-600">
-                {subiendo ? (
-                  <span className="font-semibold text-brand-700">Subiendo archivo a almacenamiento…</span>
-                ) : watch.image_url ? (
-                  <span className="font-medium text-emerald-700">Imagen vinculada: {watch.image_url}</span>
-                ) : (
-                  "Formatos aceptados: JPG, PNG o WebP (hasta 2 MB)."
-                )}
-              </div>
-            </div>
-            {watch.image_url && (
-              <div className="mt-3 flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={watch.image_url}
-                  alt="Vista previa"
-                  className="h-20 w-20 rounded border border-slate-300 bg-white object-contain p-1"
-                />
-                <button
-                  type="button"
-                  className="text-xs text-red-600 underline hover:text-red-800"
-                  onClick={() => form.setValue("image_url", "")}
-                >
-                  Quitar imagen
-                </button>
-              </div>
-            )}
-          </div>
+          <GaleriaImagenes
+            items={galeria}
+            onChange={(nuevas) => {
+              setGaleria(nuevas);
+              setGaleriaCambiada(true);
+            }}
+            deshabilitado={pendiente}
+          />
 
           <div>
             <label htmlFor="pr-origen" className="etiqueta">
@@ -440,7 +424,7 @@ export function GestionProductos({
           </div>
 
           <div className="flex gap-2 sm:col-span-2 lg:col-span-3 border-t border-slate-200 pt-4">
-            <button type="submit" disabled={pendiente || subiendo} className="btn-primario">
+            <button type="submit" disabled={pendiente} className="btn-primario">
               {pendiente ? "Guardando cambios…" : "Guardar producto"}
             </button>
             <button type="button" className="btn-secundario" onClick={() => setMostrarForm(false)}>

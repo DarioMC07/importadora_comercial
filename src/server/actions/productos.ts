@@ -3,28 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { obtenerSesionVendedor } from "@/lib/auth";
-import { productoSchema } from "@/lib/validators";
+import { imagenesProductoSchema, productoSchema, uuidSchema } from "@/lib/validators";
+import { validarArchivoImagen } from "@/lib/galeria";
 import { limpiarAtributos } from "@/lib/rubros";
 import { mensajeError } from "./errores";
 import type { ResultadoAccion } from "./proveedores";
 
 export type ResultadoProducto = ResultadoAccion & { errores?: Record<string, string> };
-
-export async function subirImagenProducto(form: FormData): Promise<{ ok: boolean; url?: string; error?: string }> {
-  const sesion = await obtenerSesionVendedor();
-  if (!sesion) return { ok: false, error: "Sesión expirada." };
-  const file = form.get("imagen");
-  if (!(file instanceof File) || !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 2097152 || file.size === 0) {
-    return { ok: false, error: "Selecciona una imagen JPG, PNG o WebP de hasta 2 MB." };
-  }
-  const supabase = await crearClienteServidor();
-  const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
-  const path = `${sesion.workspaceId}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type });
-  if (error) return { ok: false, error: "No se pudo subir la imagen. Intenta nuevamente." };
-  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${path}`;
-  return { ok: true, url };
-}
 
 export async function guardarProducto(input: unknown, id?: string): Promise<ResultadoProducto> {
   const sesion = await obtenerSesionVendedor();
@@ -74,6 +59,7 @@ export async function guardarProducto(input: unknown, id?: string): Promise<Resu
     ...(parsed.data.catalog_availability !== undefined && { catalog_availability: parsed.data.catalog_availability }),
   };
 
+  let productoId = id;
   if (id) {
     const { error } = await supabase
       .from("products")
@@ -82,14 +68,15 @@ export async function guardarProducto(input: unknown, id?: string): Promise<Resu
       .eq("workspace_id", sesion.workspaceId);
     if (error) return { ok: false, error: mensajeError(error.code, error.message) };
   } else {
-    const { error } = await supabase.from("products").insert(datos);
+    const { data: creado, error } = await supabase.from("products").insert(datos).select("id").single();
     if (error) return { ok: false, error: mensajeError(error.code, error.message) };
+    productoId = creado.id as string;
   }
 
   revalidatePath("/dashboard/productos");
   revalidatePath("/dashboard");
   revalidatePath("/catalogo");
-  return { ok: true };
+  return { ok: true, id: productoId };
 }
 
 /** Publicar: copia solo campos autorizados a catalog_listings (función RPC). */
@@ -116,4 +103,51 @@ export async function despublicarProducto(id: string): Promise<ResultadoAccion> 
   revalidatePath("/catalogo");
   revalidatePath("/");
   return { ok: true };
+}
+
+/** Sube un archivo de la galería a la carpeta del producto. No escribe en la base. */
+export async function subirImagenGaleria(
+  form: FormData,
+): Promise<{ ok: boolean; storage_path?: string; public_url?: string; error?: string }> {
+  const sesion = await obtenerSesionVendedor();
+  if (!sesion) return { ok: false, error: "Sesión expirada." };
+  const productId = uuidSchema.safeParse(form.get("productId"));
+  if (!productId.success) return { ok: false, error: "Identificador inválido" };
+  const file = form.get("imagen");
+  if (!(file instanceof File)) return { ok: false, error: "Selecciona una imagen JPG, PNG o WebP de hasta 2 MB." };
+  const problema = validarArchivoImagen(file);
+  if (problema) return { ok: false, error: problema };
+  const supabase = await crearClienteServidor();
+  const { data: producto } = await supabase
+    .from("products")
+    .select("id")
+    .eq("id", productId.data)
+    .eq("workspace_id", sesion.workspaceId)
+    .maybeSingle();
+  if (!producto) return { ok: false, error: "El producto no existe o no pertenece a tu espacio." };
+  const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
+  const storage_path = `${sesion.workspaceId}/${productId.data}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("product-images").upload(storage_path, file, { contentType: file.type });
+  if (error) return { ok: false, error: "No se pudo subir la imagen. Intenta nuevamente." };
+  const public_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${storage_path}`;
+  return { ok: true, storage_path, public_url };
+}
+
+/** Reemplaza la galería completa del producto, en el orden recibido (la primera es la portada). */
+export async function guardarImagenesProducto(productId: string, imagenes: unknown): Promise<ResultadoAccion> {
+  const sesion = await obtenerSesionVendedor();
+  if (!sesion) return { ok: false, error: "Sesión expirada." };
+  const id = uuidSchema.safeParse(productId);
+  if (!id.success) return { ok: false, error: id.error.issues[0]?.message };
+  const parsed = imagenesProductoSchema.safeParse(imagenes);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+  const supabase = await crearClienteServidor();
+  const { data, error } = await supabase.rpc("set_product_images", { p_product_id: id.data, p_images: parsed.data });
+  if (error) return { ok: false, error: mensajeError(error.code, error.message) };
+  const sobrantes = Array.isArray(data) ? (data as string[]) : [];
+  if (sobrantes.length > 0) await supabase.storage.from("product-images").remove(sobrantes);
+  revalidatePath("/dashboard/productos");
+  revalidatePath("/catalogo");
+  revalidatePath("/");
+  return { ok: true, id: id.data };
 }

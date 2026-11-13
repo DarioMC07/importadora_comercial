@@ -26,6 +26,8 @@ export function mensajeError(codigo: string | undefined, mensaje?: string): stri
     DESCUENTO_INVALIDO: "El descuento no es válido.",
     DESCUENTO_MAYOR_AL_SUBTOTAL: "El descuento no puede superar el subtotal.",
     PRODUCTO_INACTIVO: "El producto está inactivo.",
+    IMAGENES_INVALIDAS: "Alguna imagen no es válida.",
+    DEMASIADAS_IMAGENES: "Máximo 8 imágenes por producto.",
   };
   for (const [clave, texto] of Object.entries(conocidos)) {
     if (msg.includes(clave)) return texto;

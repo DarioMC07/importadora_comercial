@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RUBROS, validarAtributos } from "@/lib/rubros";
+import { MAX_IMAGENES } from "@/lib/galeria";
 
 /**
  * Validación compartida cliente/servidor con Zod.
@@ -81,6 +82,17 @@ export const productoSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: e.mensaje, path: ["attributes", e.clave] });
     }
   });
+
+export const imagenesProductoSchema = z
+  .array(
+    z
+      .object({
+        storage_path: z.string().min(1, "Imagen inválida").max(500, "Imagen inválida"),
+        public_url: z.string().min(1, "Imagen inválida").max(1000, "Imagen inválida"),
+      })
+      .strict(),
+  )
+  .max(MAX_IMAGENES, `Máximo ${MAX_IMAGENES} imágenes por producto`);
 
 // --- Importaciones -----------------------------------------------------------
 export const importItemSchema = z
