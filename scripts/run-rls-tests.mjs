@@ -20,7 +20,7 @@ if (!url || !anonKey) {
 let pasadas = 0;
 let falladas = 0;
 
-function prueba(nombre: string, condicion: boolean, detalle = "") {
+function prueba(nombre, condicion, detalle = "") {
   if (condicion) {
     pasadas++;
     console.log(`  ✓ ${nombre}`);
@@ -30,8 +30,8 @@ function prueba(nombre: string, condicion: boolean, detalle = "") {
   }
 }
 
-async function login(email: string) {
-  const cliente = createClient(url!, anonKey!, { auth: { persistSession: false } });
+async function login(email) {
+  const cliente = createClient(url, anonKey, { auth: { persistSession: false } });
   const { error } = await cliente.auth.signInWithPassword({ email, password: "Demo-2026!" });
   if (error) throw new Error(`No se pudo iniciar sesión como ${email}: ${error.message}`);
   return cliente;
@@ -43,10 +43,11 @@ const CLIENTE_V2 = "66666666-0000-4000-8000-000000000004";
 const VENTA_V2 = "88888888-0000-4000-8000-000000000011";
 const IMPORT_V2 = "55555555-0000-4000-8000-000000000003";
 const WS_V2 = "11111111-0000-4000-8000-000000000002";
+const PRODUCTO_V1 = "33333333-0000-4000-8000-000000000001"; // Auriculares (vendedor 1)
 
 async function main() {
   console.log("\nPruebas RLS — rol anónimo (visitante)");
-  const anon = createClient(url!, anonKey!, { auth: { persistSession: false } });
+  const anon = createClient(url, anonKey, { auth: { persistSession: false } });
 
   const { data: catalogo } = await anon.from("catalog_listings").select("*").limit(5);
   prueba("anónimo PUEDE leer el catálogo público", (catalogo?.length ?? 0) > 0);
@@ -78,7 +79,7 @@ async function main() {
   const { data: misProductos } = await v1.from("products").select("id, workspace_id");
   prueba(
     "vendedor 1 lee SOLO sus productos",
-    (misProductos?.length ?? 0) > 0 && misProductos!.every((p) => p.workspace_id !== WS_V2),
+    (misProductos?.length ?? 0) > 0 && misProductos.every((p) => p.workspace_id !== WS_V2),
   );
 
   const { data: prodAjeno } = await v1.from("products").select("*").eq("id", PRODUCTO_V2);
@@ -122,6 +123,53 @@ async function main() {
     type: "AJUSTE_POSITIVO", quantity: 100,
   });
   prueba("movimientos NO se insertan directo (solo por funciones)", !!insMov);
+
+  console.log("\nPruebas RLS — rubro y atributos de producto");
+
+  const { error: updPropio } = await v1
+    .from("products")
+    .update({ rubro: "TECNOLOGIA", attributes: { marca: "AirBeat", modelo: "TWS-1" } })
+    .eq("id", PRODUCTO_V1);
+  prueba("vendedor 1 PUEDE guardar rubro y atributos en su producto", !updPropio, updPropio?.message ?? "");
+
+  const { error: pubPropio } = await v1.rpc("publish_product", { p_product_id: PRODUCTO_V1 });
+  prueba("vendedor 1 PUEDE publicar su producto", !pubPropio, pubPropio?.message ?? "");
+
+  const { data: ficha } = await anon.from("catalog_listings").select("*").eq("product_id", PRODUCTO_V1).single();
+  prueba(
+    "la ficha pública muestra rubro y atributos",
+    ficha?.rubro === "TECNOLOGIA" && ficha?.attributes?.marca === "AirBeat",
+  );
+  prueba(
+    "la ficha pública con atributos NO expone columnas privadas",
+    prohibidas.every((c) => !Object.keys(ficha ?? {}).includes(c)),
+  );
+
+  await v1.from("products").update({ attributes: { marca: "AirBeat", modelo: "TWS-2" } }).eq("id", PRODUCTO_V1);
+  const { data: fichaSync } = await anon.from("catalog_listings").select("attributes").eq("product_id", PRODUCTO_V1).single();
+  prueba("un cambio de atributos se refleja en el catálogo publicado", fichaSync?.attributes?.modelo === "TWS-2");
+
+  const { error: rubroMalo } = await v1.from("products").update({ rubro: "INVENTADO" }).eq("id", PRODUCTO_V1);
+  prueba("la base rechaza un rubro fuera de la lista", !!rubroMalo);
+
+  await v1.from("products").update({ rubro: "MODA", attributes: { talla: "intruso" } }).eq("id", PRODUCTO_V2);
+  const v2c = await login("vendedor2@demo.importhub.test");
+  const { data: ajeno } = await v2c.from("products").select("rubro, attributes").eq("id", PRODUCTO_V2).single();
+  prueba(
+    "vendedor 1 NO puede cambiar rubro ni atributos de un producto ajeno",
+    ajeno?.rubro !== "MODA" && ajeno?.attributes?.talla !== "intruso",
+  );
+
+  const { error: pubAjeno } = await v1.rpc("publish_product", { p_product_id: PRODUCTO_V2 });
+  prueba("vendedor 1 NO puede publicar un producto ajeno", !!pubAjeno);
+
+  await v1.from("catalog_listings").update({ attributes: { marca: "intruso" } }).eq("product_id", PRODUCTO_V1);
+  await anon.from("catalog_listings").update({ attributes: { marca: "intruso" } }).eq("product_id", PRODUCTO_V1);
+  const { data: fichaFinal } = await anon.from("catalog_listings").select("attributes").eq("product_id", PRODUCTO_V1).single();
+  prueba(
+    "nadie escribe atributos directo en catalog_listings (solo por funciones)",
+    fichaFinal?.attributes?.marca === "AirBeat",
+  );
 
   console.log(`\nResultado: ${pasadas} pasadas, ${falladas} falladas.`);
   process.exit(falladas > 0 ? 1 : 0);
