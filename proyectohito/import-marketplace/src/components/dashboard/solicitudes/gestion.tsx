@@ -116,7 +116,14 @@ export function GestionSolicitudes({ solicitudes }: { solicitudes: Solicitud[] }
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-sm font-bold tracking-wider text-slate-900">{s.public_code}</p>
                 <p className="text-sm text-slate-500">
-                  {s.customer_name} · {s.customer_phone} · {formatoFechaLarga(s.created_at)}
+                  {s.customer_name} ·{" "}
+                  <a
+                    href={`tel:${s.customer_phone.replace(/[^+\d]/g, "")}`}
+                    className="font-medium text-brand-700 underline underline-offset-4"
+                  >
+                    {s.customer_phone}
+                  </a>{" "}
+                  · {formatoFechaLarga(s.created_at)}
                 </p>
               </div>
               <Badge tono={tonoEstado[s.status]}>{s.status}</Badge>

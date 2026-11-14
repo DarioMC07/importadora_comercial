@@ -24,17 +24,28 @@ export function Paginacion({
   );
 
   return (
-    <nav aria-label="Paginación del catálogo" className="mt-8 flex justify-center gap-1">
+    <nav
+      aria-label="Paginación del catálogo"
+      className="mt-10 flex flex-wrap justify-center gap-1"
+    >
       {pagina > 1 && (
-        <Link href={url(pagina - 1)} className="btn-secundario" aria-label="Página anterior">
+        <Link
+          href={url(pagina - 1)}
+          className="btn-secundario"
+          aria-label="Página anterior"
+        >
           ←
         </Link>
       )}
       {paginas.map((p, i) => (
         <span key={p} className="flex items-center gap-1">
-          {i > 0 && paginas[i - 1] !== undefined && p - (paginas[i - 1] as number) > 1 && (
-            <span aria-hidden="true" className="px-1 text-slate-400">…</span>
-          )}
+          {i > 0 &&
+            paginas[i - 1] !== undefined &&
+            p - (paginas[i - 1] as number) > 1 && (
+              <span aria-hidden="true" className="px-1 text-slate-400">
+                …
+              </span>
+            )}
           <Link
             href={url(p)}
             aria-current={p === pagina ? "page" : undefined}
@@ -49,7 +60,11 @@ export function Paginacion({
         </span>
       ))}
       {pagina < totalPaginas && (
-        <Link href={url(pagina + 1)} className="btn-secundario" aria-label="Página siguiente">
+        <Link
+          href={url(pagina + 1)}
+          className="btn-secundario"
+          aria-label="Página siguiente"
+        >
           →
         </Link>
       )}

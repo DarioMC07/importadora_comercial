@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { RUBROS, validarAtributos } from "@/lib/rubros";
+import { MAX_IMAGENES } from "@/lib/galeria";
 
 /**
  * Validación compartida cliente/servidor con Zod.
@@ -47,14 +49,16 @@ export const proveedorSchema = z
 // --- Productos ---------------------------------------------------------------
 export const productoSchema = z
   .object({
-    sku: z.string().trim().min(1, "SKU requerido").max(60),
-    name: z.string().trim().min(2, "Nombre requerido").max(160),
-    description: z.string().trim().max(4000).optional().or(z.literal("")),
-    category: z.string().trim().min(1, "Categoría requerida").max(80),
+    sku: z.string().trim().min(1, "SKU requerido").max(60, "Máximo 60 caracteres"),
+    name: z.string().trim().min(2, "Nombre requerido").max(160, "Máximo 160 caracteres"),
+    description: z.string().trim().max(4000, "Máximo 4000 caracteres").optional().or(z.literal("")),
+    category: z.string().trim().min(1, "Categoría requerida").max(80, "Máximo 80 caracteres"),
+    rubro: z.enum(RUBROS, { errorMap: () => ({ message: "Rubro inválido" }) }).default("GENERAL"),
+    attributes: z.record(z.string().max(40), z.string().max(1000, "Máximo 1000 caracteres")).default({}),
     image_url: z.string().max(1000).refine(v => !v || /^\/[\w-]+\/[\w.-]+$/.test(v) || /^https?:\/\//.test(v), "URL de imagen inválida").optional(),
     sizes: z.string().trim().max(200).optional(),
     colors: z.string().trim().max(500).optional(),
-    catalog_availability: z.enum(["Disponible", "Agotado", "Consultar disponibilidad"]).optional(),
+    catalog_availability: z.enum(["Disponible", "Agotado", "Consultar disponibilidad"], { errorMap: () => ({ message: "Disponibilidad inválida" }) }).optional(),
     base_cost: montoSchema,
     sale_price: montoSchema,
     freight_alloc: montoSchema,
@@ -65,14 +69,30 @@ export const productoSchema = z
     dim_height: z.string().optional().or(z.literal("")),
     dim_unit: z.enum(["cm", "m", "in"]).default("cm"),
     weight_kg: z.string().optional().or(z.literal("")),
-    min_stock: z.number().int().min(0, "No puede ser negativo").max(100000),
-    unit: z.string().trim().min(1).max(20).default("unidad"),
-    origin_country: z.string().trim().max(80).optional().or(z.literal("")),
+    min_stock: z.number({ invalid_type_error: "Ingresa un número" }).int("Debe ser un número entero").min(0, "No puede ser negativo").max(100000, "Máximo 100000"),
+    unit: z.string().trim().min(1, "Unidad requerida").max(20, "Máximo 20 caracteres").default("unidad"),
+    origin_country: z.string().trim().max(80, "Máximo 80 caracteres").refine((v) => v.length !== 1, "Mínimo 2 letras").optional().or(z.literal("")),
     origin_public: z.boolean().default(false),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
     active: z.boolean().default(true),
   })
-  .strict();
+  .strict()
+  .superRefine((datos, ctx) => {
+    for (const e of validarAtributos(datos.rubro, datos.attributes)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: e.mensaje, path: ["attributes", e.clave] });
+    }
+  });
+
+export const imagenesProductoSchema = z
+  .array(
+    z
+      .object({
+        storage_path: z.string().min(1, "Imagen inválida").max(500, "Imagen inválida"),
+        public_url: z.string().min(1, "Imagen inválida").max(1000, "Imagen inválida"),
+      })
+      .strict(),
+  )
+  .max(MAX_IMAGENES, `Máximo ${MAX_IMAGENES} imágenes por producto`);
 
 // --- Importaciones -----------------------------------------------------------
 export const importItemSchema = z
@@ -187,6 +207,7 @@ export type FiltroCatalogo = z.infer<typeof filtroCatalogoSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ProveedorInput = z.infer<typeof proveedorSchema>;
 export type ProductoInput = z.infer<typeof productoSchema>;
+export type ProductoFormulario = z.input<typeof productoSchema>;
 export type ImportacionInput = z.infer<typeof importacionSchema>;
 export type ClienteInput = z.infer<typeof clienteSchema>;
 export type VentaInput = z.infer<typeof ventaSchema>;

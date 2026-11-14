@@ -4,17 +4,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { obtenerMarca } from "./marcas";
 
-const secciones = [
-  { href: "/dashboard", etiqueta: "Resumen" },
-  { href: "/dashboard/productos", etiqueta: "Productos" },
-  { href: "/dashboard/solicitudes", etiqueta: "Solicitudes" },
-  { href: "/dashboard/ventas", etiqueta: "Ventas" },
-  { href: "/dashboard/clientes", etiqueta: "Clientes" },
-  { href: "/dashboard/inventario", etiqueta: "Inventario" },
-  { href: "/dashboard/importaciones", etiqueta: "Importaciones" },
-  { href: "/dashboard/proveedores", etiqueta: "Proveedores" },
-  { href: "/dashboard/reportes", etiqueta: "Reportes" },
+// Agrupadas por tarea: lo que se atiende a diario va primero.
+const grupos = [
+  { titulo: null, secciones: [{ href: "/dashboard", etiqueta: "Resumen" }] },
+  {
+    titulo: "Vender",
+    secciones: [
+      { href: "/dashboard/solicitudes", etiqueta: "Solicitudes" },
+      { href: "/dashboard/ventas", etiqueta: "Ventas" },
+      { href: "/dashboard/clientes", etiqueta: "Clientes" },
+    ],
+  },
+  {
+    titulo: "Catálogo y stock",
+    secciones: [
+      { href: "/dashboard/productos", etiqueta: "Productos" },
+      { href: "/dashboard/inventario", etiqueta: "Inventario" },
+    ],
+  },
+  {
+    titulo: "Abastecimiento",
+    secciones: [
+      { href: "/dashboard/importaciones", etiqueta: "Importaciones" },
+      { href: "/dashboard/proveedores", etiqueta: "Proveedores" },
+    ],
+  },
+  { titulo: "Análisis", secciones: [{ href: "/dashboard/reportes", etiqueta: "Reportes" }] },
 ] as const;
 
 const trazosIconos: Record<string, string> = {
@@ -50,14 +67,15 @@ export function BarraLateral({
   nombreEspacio,
   nombreUsuario,
   workspaceSlug = "",
-  esAveli = false,
+  solicitudesPendientes = 0,
 }: {
   nombreEspacio: string;
   nombreUsuario: string;
   workspaceSlug?: string;
-  esAveli?: boolean;
+  solicitudesPendientes?: number;
 }) {
   const pathname = usePathname();
+  const marca = obtenerMarca(workspaceSlug);
   const [abierto, setAbierto] = useState(false);
 
   const activo = (href: string) =>
@@ -68,17 +86,28 @@ export function BarraLateral({
       {/* Botón móvil */}
       <button
         type="button"
-        className="btn-primario fixed bottom-4 right-4 z-50 rounded-full shadow-lg lg:hidden"
+        className="fixed left-3 top-2.5 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-brand-800 text-white lg:hidden"
         aria-expanded={abierto}
         aria-controls="barra-lateral"
+        aria-label={abierto ? "Cerrar menú" : "Menú del panel"}
         onClick={() => setAbierto((v) => !v)}
       >
-        {abierto ? "Cerrar menú" : "Menú del panel"}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          className="h-5 w-5"
+        >
+          <path d={abierto ? "M6 6l12 12 M18 6L6 18" : "M4 7h16 M4 12h16 M4 17h16"} />
+        </svg>
       </button>
 
       {abierto && (
         <div
-          className="fixed inset-0 z-30 bg-slate-900/60 lg:hidden"
+          className="fixed inset-0 z-30 bg-brand-950/60 lg:hidden"
           aria-hidden="true"
           onClick={() => setAbierto(false)}
         />
@@ -87,102 +116,103 @@ export function BarraLateral({
       <aside
         id="barra-lateral"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-slate-900 text-slate-100 transition-transform lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-brand-900 text-brand-100 transition-transform lg:translate-x-0",
           abierto ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Cabecera del Sidebar */}
-        <div className="border-b border-slate-800 p-5">
+        <div className="border-b border-white/10 p-5 pt-16 lg:pt-5">
           <Link href="/dashboard" className="block text-white transition-opacity hover:opacity-90">
-            {workspaceSlug === "aveli" ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/aveli/logo.png"
-                  alt="AVÉLI"
-                  width={90}
-                  height={90}
-                  className="mx-auto mb-2 rounded-full border border-rose-200/20"
-                />
-                <span className="block text-center font-serif text-xl font-bold tracking-widest">AVÉLI</span>
-              </>
-            ) : workspaceSlug === "smaylan" ? (
+            {marca ? (
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-900 text-white font-serif font-bold text-lg">
-                  SM
-                </div>
-                <div>
-                  <span className="block font-serif text-lg font-bold tracking-wide">Smaylan</span>
-                  <span className="block text-[11px] text-rose-300">Cosmética Facial</span>
-                </div>
-              </div>
-            ) : workspaceSlug === "chocolates-capri" ? (
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-900 text-amber-100 font-serif font-bold text-lg">
-                  CP
-                </div>
-                <div>
-                  <span className="block font-serif text-lg font-bold tracking-wide">Chocolates Capri</span>
-                  <span className="block text-[11px] text-amber-300">Nestlé Capri</span>
-                </div>
-              </div>
-            ) : workspaceSlug === "trencito" ? (
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-900 text-white font-serif font-bold text-lg">
-                  TR
-                </div>
-                <div>
-                  <span className="block font-serif text-lg font-bold tracking-wide">Trencito</span>
-                  <span className="block text-[11px] text-red-300">Express</span>
+                {marca.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={marca.logo}
+                    alt=""
+                    width={44}
+                    height={44}
+                    className="h-11 w-11 shrink-0 rounded-full bg-white object-contain"
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lima font-display text-lg font-semibold text-slate-900"
+                  >
+                    {marca.iniciales}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <span className="block font-display text-lg font-semibold leading-tight tracking-tight">
+                    {marca.nombre}
+                  </span>
+                  <span className="block text-xs text-brand-300">{marca.lema}</span>
                 </div>
               </div>
             ) : (
               <div>
-                <span className="block text-lg font-bold tracking-wide">ImportHub</span>
-                <span className="block text-xs text-slate-400">{nombreEspacio}</span>
+                <span className="block font-display text-xl font-semibold tracking-tight">ImportHub</span>
+                <span className="block text-xs text-brand-300">Panel de vendedor</span>
               </div>
             )}
           </Link>
 
-          <div className="mt-3 border-t border-slate-800/80 pt-3">
-            <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {nombreEspacio}
-            </p>
-            <p className="truncate text-xs text-slate-500">{nombreUsuario}</p>
+          <div className="mt-4 rounded-xl bg-white/5 px-3 py-2.5">
+            <p className="truncate text-sm font-semibold text-white">{nombreEspacio}</p>
+            <p className="truncate text-xs text-brand-300">{nombreUsuario}</p>
           </div>
         </div>
 
         {/* Navegación formal sin emojis */}
         <nav aria-label="Menú del panel" className="flex-1 overflow-y-auto p-3">
-          <ul className="space-y-1">
-            {secciones.map((s) => (
-              <li key={s.href}>
-                <Link
-                  href={s.href}
-                  aria-current={activo(s.href) ? "page" : undefined}
-                  onClick={() => setAbierto(false)}
-                  className={cn(
-                    "flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    activo(s.href)
-                      ? "bg-brand-600 text-white shadow-sm"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white",
-                  )}
-                >
-                  <IconoFormal nombre={s.etiqueta} />
-                  <span>{s.etiqueta}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {grupos.map((g) => (
+            <div key={g.titulo ?? "inicio"} className="mb-4 last:mb-0">
+              {g.titulo && (
+                <p className="mb-1 px-3 text-xs font-medium text-brand-300">{g.titulo}</p>
+              )}
+              <ul className="space-y-0.5">
+                {g.secciones.map((s) => (
+                  <li key={s.href}>
+                    <Link
+                      href={s.href}
+                      aria-current={activo(s.href) ? "page" : undefined}
+                      onClick={() => setAbierto(false)}
+                      className={cn(
+                        "flex min-h-[42px] items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                        activo(s.href)
+                          ? "nav-activo bg-lima text-slate-900"
+                          : "text-brand-100 hover:bg-white/10 hover:text-white",
+                      )}
+                    >
+                      <IconoFormal nombre={s.etiqueta} />
+                      <span className="flex-1">{s.etiqueta}</span>
+                      {s.href === "/dashboard/solicitudes" && solicitudesPendientes > 0 && (
+                        <span
+                          className={cn(
+                            "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold",
+                            activo(s.href) ? "bg-slate-900 text-white" : "bg-lima text-slate-900",
+                          )}
+                        >
+                          {solicitudesPendientes}
+                          <span className="sr-only"> pendientes</span>
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         {/* Enlace al marketplace público */}
-        <div className="border-t border-slate-800 p-3">
+        <div className="border-t border-white/10 p-3">
           <Link
-            href="/"
-            className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+            href={workspaceSlug ? `/catalogo?vendedor=${encodeURIComponent(workspaceSlug)}` : "/"}
+            className="flex min-h-[44px] items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-brand-100 transition-colors hover:bg-white/10 hover:text-white"
           >
             <svg
+              aria-hidden="true"
               className="h-4 w-4"
               viewBox="0 0 24 24"
               fill="none"
@@ -191,10 +221,9 @@ export function BarraLateral({
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <line x1="19" y1="12" x2="5" y2="12"></line>
-              <polyline points="12 19 5 12 12 5"></polyline>
+              <path d="M7 17 17 7 M8 7h9v9" />
             </svg>
-            <span>Ver marketplace público</span>
+            <span>Ver mi tienda pública</span>
           </Link>
         </div>
       </aside>

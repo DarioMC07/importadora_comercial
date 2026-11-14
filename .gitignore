@@ -42,4 +42,6 @@ pnpm-debug.log*
 .idea/
 
 .vercel
-.env*
+
+# Configuración local de agentes
+.claude/

@@ -17,6 +17,19 @@ export default async function PaginaProductos() {
     .eq("workspace_id", sesion.workspaceId)
     .order("name", { ascending: true });
 
+  const ids = (data ?? []).map((p) => p.id as string);
+  const { data: imagenes } =
+    ids.length > 0
+      ? await supabase
+          .from("product_images")
+          .select("product_id, storage_path, public_url, position")
+          .in("product_id", ids)
+      : { data: [] };
+  const productos = (data ?? []).map((p) => ({
+    ...p,
+    product_images: (imagenes ?? []).filter((i) => i.product_id === p.id),
+  }));
+
   const subtituloPorTienda: Record<string, string> = {
     aveli: "Blusas y poleras · Piezas que realzan tu esencia. Administra tu colección y agrega nuevas prendas.",
     smaylan: "Cosmética facial y maquillaje especializado. Administra tus productos oficiales y disponibilidad.",
@@ -31,7 +44,7 @@ export default async function PaginaProductos() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 font-serif">
+        <h1 className="titulo-pagina">
           Catálogo {sesion.workspaceNombre}
         </h1>
         <p className="mt-1 text-sm text-slate-600">{subtitulo}</p>
@@ -43,7 +56,7 @@ export default async function PaginaProductos() {
         </div>
       ) : (
         <GestionProductos
-          productos={data ?? []}
+          productos={productos}
           esAveli={esAveli}
           workspaceNombre={sesion.workspaceNombre}
         />

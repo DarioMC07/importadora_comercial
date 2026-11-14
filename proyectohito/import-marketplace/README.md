@@ -227,3 +227,18 @@ flowchart LR
 2. Despliega en Vercel con las variables de entorno de `.env.example`
    (sin `SUPABASE_SERVICE_ROLE_KEY`, salvo que ejecutes el seed).
 3. Configura `NEXT_PUBLIC_SITE_URL` con tu dominio para sitemap/OG.
+
+## Estructura
+
+| Ruta | Contenido |
+|------|-----------|
+| `src/` | Código de la app (rutas, componentes, lib, server actions) |
+| `supabase/` | Migraciones, seed y tests RLS |
+| `e2e/`, `tests/` | Playwright y Vitest |
+| `scripts/` | Seeds y utilidades |
+| `docs/` | `DECISIONES.md` y `AVELI.md` |
+
+## Ramas
+
+- `main`: estable.
+- `develop`: integración. Las ramas de trabajo salen de `develop` y vuelven por PR.
