@@ -72,6 +72,12 @@ describe("validadores", () => {
     expect(f.pagina).toBe(1);
     expect(f.orden).toBe("relevancia");
   });
+
+  it("uuidSchema valida identificadores UUID correctamente", async () => {
+    const { uuidSchema } = await import("@/lib/validators");
+    expect(uuidSchema.safeParse("11111111-0000-4000-8000-000000000001").success).toBe(true);
+    expect(uuidSchema.safeParse("invalido").success).toBe(false);
+  });
 });
 
 describe("productoSchema", () => {

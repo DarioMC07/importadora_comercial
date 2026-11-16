@@ -5,12 +5,19 @@ import { useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { productoSchema, type ProductoInput } from "@/lib/validators";
 import type { z } from "zod";
-import { guardarProducto, publicarProducto, despublicarProducto, subirImagenGaleria, guardarImagenesProducto } from "@/server/actions/productos";
+import {
+  guardarProducto,
+  publicarProducto,
+  despublicarProducto,
+  subirImagenGaleria,
+  guardarImagenesProducto,
+  eliminarProducto,
+} from "@/server/actions/productos";
 import { imagenesIniciales, type FilaImagen, type ImagenGaleria, type ImagenGuardada } from "@/lib/galeria";
 import { GaleriaImagenes } from "@/components/dashboard/productos/galeria-imagenes";
 import { Badge } from "@/components/ui/badge";
 import { formatoDineroDecimal } from "@/lib/format";
-import { ETIQUETA_RUBRO, RUBROS, esRubro, normalizarAtributos, rubroMasUsado } from "@/lib/rubros";
+import { ETIQUETA_RUBRO, RUBROS, esRubro, normalizarAtributos, rubroMasUsado, type Rubro } from "@/lib/rubros";
 import { CamposRubro } from "@/components/dashboard/productos/campos-rubro";
 
 type ProductoForm = z.input<typeof productoSchema>;
@@ -78,19 +85,12 @@ const vacio: ProductoForm = {
   active: true,
 };
 
-function aNum(v: string | number | undefined): number {
-  const n = Number(String(v).replace(",", "."));
-  return Number.isFinite(n) ? n : 0;
-}
-
 export function GestionProductos({
   productos,
   esAveli = false,
-  workspaceNombre = "Catálogo",
 }: {
   productos: Producto[];
   esAveli?: boolean;
-  workspaceNombre?: string;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("Todos");
@@ -115,11 +115,6 @@ export function GestionProductos({
   }, []);
 
   const watch = form.watch();
-  const landed =
-    aNum(watch.base_cost ?? "0") +
-    aNum(watch.freight_alloc ?? "0") +
-    aNum(watch.duty_alloc ?? "0") +
-    aNum(watch.other_alloc ?? "0");
 
   const categorias = ["Todos", ...Array.from(new Set(productos.map((p) => p.category).filter(Boolean)))];
 
@@ -129,6 +124,27 @@ export function GestionProductos({
       (categoria === "Todos" || p.category === categoria),
   );
 
+  function obtenerAtributosConValoresPorDefecto(p: Producto, rubro: Rubro): Record<string, string> {
+    const attrs = { ...normalizarAtributos(p.attributes) };
+    if (rubro === "COSMETICOS" && !attrs.marca) {
+      if (p.name.toLowerCase().includes("dolce bella")) attrs.marca = "Dolce Bella";
+      else if (p.name.toLowerCase().includes("ruby skin")) attrs.marca = "Ruby Skin";
+      else attrs.marca = "Cosmética";
+    }
+    if (rubro === "ALIMENTOS" && !attrs.peso_neto) {
+      const match = p.name.match(/(\d+\s*(?:g|gr|kg|ml))/i) || (p.description ?? "").match(/(\d+\s*(?:g|gr|kg|ml))/i);
+      attrs.peso_neto = match?.[1] ?? "100 g";
+    }
+    if (rubro === "MODA" && !attrs.talla) {
+      attrs.talla = p.sizes || "S, M, L";
+    }
+    if (rubro === "TECNOLOGIA") {
+      if (!attrs.marca) attrs.marca = "Genérico";
+      if (!attrs.modelo) attrs.modelo = "Estándar";
+    }
+    return attrs;
+  }
+
   function abrirNuevo() {
     setEditando(null);
     form.reset(esAveli ? { ...vacio, rubro: rubroInicial, sizes: "XS, S, M, L, XL" } : { ...vacio, rubro: rubroInicial });
@@ -137,9 +153,13 @@ export function GestionProductos({
     setIdGuardado(null);
     setMostrarForm(true);
     setMensaje(null);
+    setTimeout(() => {
+      document.getElementById("formulario-producto")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   }
 
   function abrirEdicion(p: Producto) {
+    const rubroProd = esRubro(p.rubro) ? p.rubro : "GENERAL";
     setEditando(p);
     form.reset({
       sku: p.sku,
@@ -166,14 +186,35 @@ export function GestionProductos({
       sizes: p.sizes ?? "",
       colors: p.colors ?? "",
       catalog_availability: p.catalog_availability ?? "Disponible",
-      rubro: esRubro(p.rubro) ? p.rubro : "GENERAL",
-      attributes: normalizarAtributos(p.attributes),
+      rubro: rubroProd,
+      attributes: obtenerAtributosConValoresPorDefecto(p, rubroProd),
     });
     setGaleria(imagenesIniciales(p.product_images ?? [], p.image_url ?? null));
     setGaleriaCambiada(false);
     setIdGuardado(null);
     setMostrarForm(true);
     setMensaje(null);
+    setTimeout(() => {
+      document.getElementById("formulario-producto")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  function confirmarEliminacion(p: Producto) {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente el producto "${p.name}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    startTransition(async () => {
+      const r = await eliminarProducto(p.id);
+      if (!r.ok) {
+        setMensaje(r.error ?? "No se pudo eliminar el producto.");
+        return;
+      }
+      if (editando?.id === p.id) {
+        setMostrarForm(false);
+        setEditando(null);
+      }
+      setMensaje(null);
+    });
   }
 
   function enviar(datos: ProductoInput) {
@@ -293,8 +334,20 @@ export function GestionProductos({
       {/* Formulario de Alta y Edición para TODOS los administradores */}
       {mostrarForm && (
         <form
-          onSubmit={form.handleSubmit(enviar)}
-          className="tarjeta grid grid-cols-1 gap-4 border border-slate-200 p-6 sm:grid-cols-2 lg:grid-cols-3"
+          id="formulario-producto"
+          onSubmit={form.handleSubmit(enviar, (errores) => {
+            let textoError = "Por favor completa los campos requeridos marcados en rojo.";
+            if (errores.attributes && typeof errores.attributes === "object") {
+              const primerAttr = Object.values(errores.attributes as Record<string, { message?: string }>)[0];
+              if (primerAttr?.message) textoError = primerAttr.message;
+            } else {
+              const primerCampo = Object.values(errores)[0];
+              if (primerCampo?.message) textoError = String(primerCampo.message);
+            }
+            setMensaje(textoError);
+            document.getElementById("formulario-producto")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          })}
+          className="tarjeta grid grid-cols-1 gap-4 border border-slate-200 p-6 sm:grid-cols-2 lg:grid-cols-3 scroll-mt-6"
           noValidate
           aria-label={editando ? "Editar producto" : "Nuevo producto"}
         >
@@ -423,13 +476,25 @@ export function GestionProductos({
             {form.formState.errors.min_stock && <p className="mensaje-error">{form.formState.errors.min_stock.message}</p>}
           </div>
 
-          <div className="flex gap-2 sm:col-span-2 lg:col-span-3 border-t border-slate-200 pt-4">
-            <button type="submit" disabled={pendiente} className="btn-primario">
-              {pendiente ? "Guardando cambios…" : "Guardar producto"}
-            </button>
-            <button type="button" className="btn-secundario" onClick={() => setMostrarForm(false)}>
-              Cancelar
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2 lg:col-span-3 border-t border-slate-200 pt-4">
+            <div className="flex gap-2">
+              <button type="submit" disabled={pendiente} className="btn-primario">
+                {pendiente ? "Guardando cambios…" : editando ? "Guardar cambios" : "Guardar producto"}
+              </button>
+              <button type="button" className="btn-secundario" onClick={() => setMostrarForm(false)}>
+                Cancelar
+              </button>
+            </div>
+            {editando && (
+              <button
+                type="button"
+                disabled={pendiente}
+                className="text-xs font-semibold text-red-600 hover:text-red-800 underline p-2"
+                onClick={() => confirmarEliminacion(editando)}
+              >
+                Eliminar este producto
+              </button>
+            )}
           </div>
         </form>
       )}
@@ -522,6 +587,15 @@ export function GestionProductos({
                       >
                         {p.published ? "Despublicar" : "Publicar"}
                       </button>
+                      <button
+                        type="button"
+                        disabled={pendiente}
+                        className="btn-secundario text-xs text-red-600 hover:bg-red-50 hover:border-red-200"
+                        onClick={() => confirmarEliminacion(p)}
+                        title="Eliminar producto"
+                      >
+                        Eliminar
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -593,6 +667,14 @@ export function GestionProductos({
                           onClick={() => alternarPublicacion(p)}
                         >
                           {p.published ? "Despublicar" : "Publicar"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pendiente}
+                          className="btn-fantasma text-xs text-red-600 hover:text-red-800"
+                          onClick={() => confirmarEliminacion(p)}
+                        >
+                          Eliminar
                         </button>
                       </div>
                     </td>

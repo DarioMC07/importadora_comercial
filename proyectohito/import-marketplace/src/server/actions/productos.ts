@@ -61,12 +61,28 @@ export async function guardarProducto(input: unknown, id?: string): Promise<Resu
 
   let productoId = id;
   if (id) {
+    const { data: anterior } = await supabase
+      .from("products")
+      .select("published, active")
+      .eq("id", id)
+      .eq("workspace_id", sesion.workspaceId)
+      .maybeSingle();
+
     const { error } = await supabase
       .from("products")
       .update(datos)
       .eq("id", id)
       .eq("workspace_id", sesion.workspaceId);
     if (error) return { ok: false, error: mensajeError(error.code, error.message) };
+
+    // Si el producto estaba publicado, sincronizar catalog_listings de inmediato
+    if (anterior?.published) {
+      if (datos.active) {
+        await supabase.rpc("publish_product", { p_product_id: id });
+      } else {
+        await supabase.rpc("unpublish_product", { p_product_id: id });
+      }
+    }
   } else {
     const { data: creado, error } = await supabase.from("products").insert(datos).select("id").single();
     if (error) return { ok: false, error: mensajeError(error.code, error.message) };
@@ -76,6 +92,7 @@ export async function guardarProducto(input: unknown, id?: string): Promise<Resu
   revalidatePath("/dashboard/productos");
   revalidatePath("/dashboard");
   revalidatePath("/catalogo");
+  revalidatePath("/");
   return { ok: true, id: productoId };
 }
 
@@ -150,4 +167,51 @@ export async function guardarImagenesProducto(productId: string, imagenes: unkno
   revalidatePath("/catalogo");
   revalidatePath("/");
   return { ok: true, id: id.data };
+}
+
+/** Elimina un producto del catálogo y limpia sus imágenes. */
+export async function eliminarProducto(id: string): Promise<ResultadoAccion> {
+  const sesion = await obtenerSesionVendedor();
+  if (!sesion) return { ok: false, error: "Sesión expirada. Ingresa nuevamente." };
+
+  const idValido = uuidSchema.safeParse(id);
+  if (!idValido.success) return { ok: false, error: "Identificador de producto inválido." };
+
+  const supabase = await crearClienteServidor();
+
+  // Intentar eliminación atómica completa vía RPC si existe la función
+  const { error: rpcError } = await supabase.rpc("delete_product", { p_product_id: idValido.data });
+
+  if (rpcError) {
+    // Si la función RPC aún no está creada en la base remota, intentar borrado directo seguro
+    const { error: deleteError } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", idValido.data)
+      .eq("workspace_id", sesion.workspaceId);
+
+    if (deleteError) {
+      return { ok: false, error: mensajeError(deleteError.code, deleteError.message) };
+    }
+  }
+
+  // Limpiar posibles archivos de imagen en storage
+  try {
+    const { data: files } = await supabase.storage
+      .from("product-images")
+      .list(`${sesion.workspaceId}/${idValido.data}`);
+    if (files && files.length > 0) {
+      await supabase.storage
+        .from("product-images")
+        .remove(files.map((f) => `${sesion.workspaceId}/${idValido.data}/${f.name}`));
+    }
+  } catch {
+    // No interrumpir si la limpieza de storage no se pudo completar
+  }
+
+  revalidatePath("/dashboard/productos");
+  revalidatePath("/dashboard");
+  revalidatePath("/catalogo");
+  revalidatePath("/");
+  return { ok: true, id: idValido.data };
 }

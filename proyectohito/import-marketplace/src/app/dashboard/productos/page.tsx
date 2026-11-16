@@ -58,7 +58,6 @@ export default async function PaginaProductos() {
         <GestionProductos
           productos={productos}
           esAveli={esAveli}
-          workspaceNombre={sesion.workspaceNombre}
         />
       )}
 
